@@ -9,9 +9,9 @@ import {
   ObserveResult,
 } from "../types/stagehand";
 import { StagehandAPI } from "./api";
-import { StagehandActHandler } from "./handlers/actHandler";
-import { StagehandExtractHandler } from "./handlers/extractHandler";
-import { StagehandObserveHandler } from "./handlers/observeHandler";
+// import { StagehandActHandler } from "./handlers/actHandler";
+// import { StagehandExtractHandler } from "./handlers/extractHandler";
+// import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { LLMClient } from "./llm/LLMClient";
 import { StagehandContext } from "./StagehandContext";
@@ -43,9 +43,9 @@ export class StagehandPage {
   private rawPage: PlaywrightPage;
   private intPage: Page;
   private intContext: StagehandContext;
-  private actHandler: StagehandActHandler;
-  private extractHandler: StagehandExtractHandler;
-  private observeHandler: StagehandObserveHandler;
+  // private actHandler: StagehandActHandler;
+  // private extractHandler: StagehandExtractHandler;
+  // private observeHandler: StagehandObserveHandler;
   private llmClient: LLMClient;
   private cdpClient: CDPSession | null = null;
   private api: StagehandAPI;
@@ -115,28 +115,28 @@ export class StagehandPage {
     this.userProvidedInstructions = userProvidedInstructions;
     this.waitForCaptchaSolves = waitForCaptchaSolves ?? false;
 
-    if (this.llmClient) {
-      this.actHandler = new StagehandActHandler({
-        logger: this.stagehand.logger,
-        stagehandPage: this,
-        selfHeal: this.stagehand.selfHeal,
-        experimental: this.stagehand.experimental,
-      });
-      this.extractHandler = new StagehandExtractHandler({
-        stagehand: this.stagehand,
-        logger: this.stagehand.logger,
-        stagehandPage: this,
-        userProvidedInstructions,
-        experimental: this.stagehand.experimental,
-      });
-      this.observeHandler = new StagehandObserveHandler({
-        stagehand: this.stagehand,
-        logger: this.stagehand.logger,
-        stagehandPage: this,
-        userProvidedInstructions,
-        experimental: this.stagehand.experimental,
-      });
-    }
+    // if (this.llmClient) {
+    //   this.actHandler = new StagehandActHandler({
+    //     logger: this.stagehand.logger,
+    //     stagehandPage: this,
+    //     selfHeal: this.stagehand.selfHeal,
+    //     experimental: this.stagehand.experimental,
+    //   });
+    //   this.extractHandler = new StagehandExtractHandler({
+    //     stagehand: this.stagehand,
+    //     logger: this.stagehand.logger,
+    //     stagehandPage: this,
+    //     userProvidedInstructions,
+    //     experimental: this.stagehand.experimental,
+    //   });
+    //   this.observeHandler = new StagehandObserveHandler({
+    //     stagehand: this.stagehand,
+    //     logger: this.stagehand.logger,
+    //     stagehandPage: this,
+    //     userProvidedInstructions,
+    //     experimental: this.stagehand.experimental,
+    //   });
+    // }
   }
 
   public ordinalForFrameId(fid: string | undefined): number {
@@ -805,346 +805,346 @@ ${scriptContent} \
     });
   }
 
-  async act(
-    actionOrOptions: string | ActOptions | ObserveResult,
-  ): Promise<ActResult> {
-    try {
-      if (!this.actHandler) {
-        throw new HandlerNotInitializedError("Act");
-      }
+  // async act(
+  //   actionOrOptions: string | ActOptions | ObserveResult,
+  // ): Promise<ActResult> {
+  //   try {
+  //     if (!this.actHandler) {
+  //       throw new HandlerNotInitializedError("Act");
+  //     }
 
-      await clearOverlays(this.page);
+  //     await clearOverlays(this.page);
 
-      // If actionOrOptions is an ObserveResult, we call actFromObserveResult.
-      // We need to ensure there is both a selector and a method in the ObserveResult.
-      if (typeof actionOrOptions === "object" && actionOrOptions !== null) {
-        // If it has selector AND method => treat as ObserveResult
-        if ("selector" in actionOrOptions && "method" in actionOrOptions) {
-          const observeResult = actionOrOptions as ObserveResult;
+  //     // If actionOrOptions is an ObserveResult, we call actFromObserveResult.
+  //     // We need to ensure there is both a selector and a method in the ObserveResult.
+  //     if (typeof actionOrOptions === "object" && actionOrOptions !== null) {
+  //       // If it has selector AND method => treat as ObserveResult
+  //       if ("selector" in actionOrOptions && "method" in actionOrOptions) {
+  //         const observeResult = actionOrOptions as ObserveResult;
 
-          if (this.api) {
-            const result = await this.api.act({
-              ...observeResult,
-              frameId: this.rootFrameId,
-            });
-            this.stagehand.addToHistory("act", observeResult, result);
-            return result;
-          }
+  //         if (this.api) {
+  //           const result = await this.api.act({
+  //             ...observeResult,
+  //             frameId: this.rootFrameId,
+  //           });
+  //           this.stagehand.addToHistory("act", observeResult, result);
+  //           return result;
+  //         }
 
-          // validate observeResult.method, etc.
-          return this.actHandler.actFromObserveResult(observeResult);
-        } else {
-          // If it's an object but no selector/method,
-          // check that it's truly ActOptions (i.e., has an `action` field).
-          if (!("action" in actionOrOptions)) {
-            throw new StagehandError(
-              "Invalid argument. Valid arguments are: a string, an ActOptions object, " +
-                "or an ObserveResult WITH 'selector' and 'method' fields.",
-            );
-          }
-        }
-      } else if (typeof actionOrOptions === "string") {
-        // Convert string to ActOptions
-        actionOrOptions = { action: actionOrOptions };
-      } else {
-        throw new StagehandError(
-          "Invalid argument: you may have called act with an empty ObserveResult.\n" +
-            "Valid arguments are: a string, an ActOptions object, or an ObserveResult " +
-            "WITH 'selector' and 'method' fields.",
-        );
-      }
+  //         // validate observeResult.method, etc.
+  //         return this.actHandler.actFromObserveResult(observeResult);
+  //       } else {
+  //         // If it's an object but no selector/method,
+  //         // check that it's truly ActOptions (i.e., has an `action` field).
+  //         if (!("action" in actionOrOptions)) {
+  //           throw new StagehandError(
+  //             "Invalid argument. Valid arguments are: a string, an ActOptions object, " +
+  //               "or an ObserveResult WITH 'selector' and 'method' fields.",
+  //           );
+  //         }
+  //       }
+  //     } else if (typeof actionOrOptions === "string") {
+  //       // Convert string to ActOptions
+  //       actionOrOptions = { action: actionOrOptions };
+  //     } else {
+  //       throw new StagehandError(
+  //         "Invalid argument: you may have called act with an empty ObserveResult.\n" +
+  //           "Valid arguments are: a string, an ActOptions object, or an ObserveResult " +
+  //           "WITH 'selector' and 'method' fields.",
+  //       );
+  //     }
 
-      const { action, modelName, modelClientOptions } = actionOrOptions;
+  //     const { action, modelName, modelClientOptions } = actionOrOptions;
 
-      if (this.api) {
-        const opts = { ...actionOrOptions, frameId: this.rootFrameId };
-        const result = await this.api.act(opts);
-        this.stagehand.addToHistory("act", actionOrOptions, result);
-        return result;
-      }
+  //     if (this.api) {
+  //       const opts = { ...actionOrOptions, frameId: this.rootFrameId };
+  //       const result = await this.api.act(opts);
+  //       this.stagehand.addToHistory("act", actionOrOptions, result);
+  //       return result;
+  //     }
 
-      const requestId = Math.random().toString(36).substring(2);
-      const llmClient: LLMClient = modelName
-        ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
-        : this.llmClient;
+  //     const requestId = Math.random().toString(36).substring(2);
+  //     const llmClient: LLMClient = modelName
+  //       ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
+  //       : this.llmClient;
 
-      this.stagehand.log({
-        category: "act",
-        message: "running act",
-        level: 1,
-        auxiliary: {
-          action: {
-            value: action,
-            type: "string",
-          },
-          requestId: {
-            value: requestId,
-            type: "string",
-          },
-          modelName: {
-            value: llmClient.modelName,
-            type: "string",
-          },
-        },
-      });
+  //     this.stagehand.log({
+  //       category: "act",
+  //       message: "running act",
+  //       level: 1,
+  //       auxiliary: {
+  //         action: {
+  //           value: action,
+  //           type: "string",
+  //         },
+  //         requestId: {
+  //           value: requestId,
+  //           type: "string",
+  //         },
+  //         modelName: {
+  //           value: llmClient.modelName,
+  //           type: "string",
+  //         },
+  //       },
+  //     });
 
-      const result = await this.actHandler.observeAct(
-        actionOrOptions,
-        this.observeHandler,
-        llmClient,
-        requestId,
-      );
-      this.stagehand.addToHistory("act", actionOrOptions, result);
-      return result;
-    } catch (err: unknown) {
-      if (err instanceof StagehandError || err instanceof StagehandAPIError) {
-        throw err;
-      }
-      throw new StagehandDefaultError(err);
-    }
-  }
+  //     const result = await this.actHandler.observeAct(
+  //       actionOrOptions,
+  //       this.observeHandler,
+  //       llmClient,
+  //       requestId,
+  //     );
+  //     this.stagehand.addToHistory("act", actionOrOptions, result);
+  //     return result;
+  //   } catch (err: unknown) {
+  //     if (err instanceof StagehandError || err instanceof StagehandAPIError) {
+  //       throw err;
+  //     }
+  //     throw new StagehandDefaultError(err);
+  //   }
+  // }
 
-  async extract<T extends z.AnyZodObject = typeof defaultExtractSchema>(
-    instructionOrOptions?: string | ExtractOptions<T>,
-  ): Promise<ExtractResult<T>> {
-    try {
-      if (!this.extractHandler) {
-        throw new HandlerNotInitializedError("Extract");
-      }
+  // async extract<T extends z.AnyZodObject = typeof defaultExtractSchema>(
+  //   instructionOrOptions?: string | ExtractOptions<T>,
+  // ): Promise<ExtractResult<T>> {
+  //   try {
+  //     if (!this.extractHandler) {
+  //       throw new HandlerNotInitializedError("Extract");
+  //     }
 
-      await clearOverlays(this.page);
+  //     await clearOverlays(this.page);
 
-      // check if user called extract() with no arguments
-      if (!instructionOrOptions) {
-        let result: ExtractResult<T>;
-        if (this.api) {
-          result = await this.api.extract<T>({ frameId: this.rootFrameId });
-        } else {
-          result = await this.extractHandler.extract();
-        }
-        this.stagehand.addToHistory("extract", instructionOrOptions, result);
-        return result;
-      }
+  //     // check if user called extract() with no arguments
+  //     if (!instructionOrOptions) {
+  //       let result: ExtractResult<T>;
+  //       if (this.api) {
+  //         result = await this.api.extract<T>({ frameId: this.rootFrameId });
+  //       } else {
+  //         result = await this.extractHandler.extract();
+  //       }
+  //       this.stagehand.addToHistory("extract", instructionOrOptions, result);
+  //       return result;
+  //     }
 
-      const options: ExtractOptions<T> =
-        typeof instructionOrOptions === "string"
-          ? {
-              instruction: instructionOrOptions,
-              schema: defaultExtractSchema as T,
-            }
-          : instructionOrOptions.schema
-            ? instructionOrOptions
-            : {
-                ...instructionOrOptions,
-                schema: defaultExtractSchema as T,
-              };
+  //     const options: ExtractOptions<T> =
+  //       typeof instructionOrOptions === "string"
+  //         ? {
+  //             instruction: instructionOrOptions,
+  //             schema: defaultExtractSchema as T,
+  //           }
+  //         : instructionOrOptions.schema
+  //           ? instructionOrOptions
+  //           : {
+  //               ...instructionOrOptions,
+  //               schema: defaultExtractSchema as T,
+  //             };
 
-      const {
-        instruction,
-        schema,
-        modelName,
-        modelClientOptions,
-        domSettleTimeoutMs,
-        useTextExtract,
-        selector,
-        iframes,
-      } = options;
+  //     const {
+  //       instruction,
+  //       schema,
+  //       modelName,
+  //       modelClientOptions,
+  //       domSettleTimeoutMs,
+  //       useTextExtract,
+  //       selector,
+  //       iframes,
+  //     } = options;
 
-      if (this.api) {
-        const opts = { ...options, frameId: this.rootFrameId };
-        const result = await this.api.extract<T>(opts);
-        this.stagehand.addToHistory("extract", instructionOrOptions, result);
-        return result;
-      }
+  //     if (this.api) {
+  //       const opts = { ...options, frameId: this.rootFrameId };
+  //       const result = await this.api.extract<T>(opts);
+  //       this.stagehand.addToHistory("extract", instructionOrOptions, result);
+  //       return result;
+  //     }
 
-      const requestId = Math.random().toString(36).substring(2);
-      const llmClient = modelName
-        ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
-        : this.llmClient;
+  //     const requestId = Math.random().toString(36).substring(2);
+  //     const llmClient = modelName
+  //       ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
+  //       : this.llmClient;
 
-      this.stagehand.log({
-        category: "extract",
-        message: "running extract",
-        level: 1,
-        auxiliary: {
-          instruction: {
-            value: instruction,
-            type: "string",
-          },
-          requestId: {
-            value: requestId,
-            type: "string",
-          },
-          modelName: {
-            value: llmClient.modelName,
-            type: "string",
-          },
-        },
-      });
+  //     this.stagehand.log({
+  //       category: "extract",
+  //       message: "running extract",
+  //       level: 1,
+  //       auxiliary: {
+  //         instruction: {
+  //           value: instruction,
+  //           type: "string",
+  //         },
+  //         requestId: {
+  //           value: requestId,
+  //           type: "string",
+  //         },
+  //         modelName: {
+  //           value: llmClient.modelName,
+  //           type: "string",
+  //         },
+  //       },
+  //     });
 
-      const result = await this.extractHandler
-        .extract({
-          instruction,
-          schema,
-          llmClient,
-          requestId,
-          domSettleTimeoutMs,
-          useTextExtract,
-          selector,
-          iframes,
-        })
-        .catch((e) => {
-          this.stagehand.log({
-            category: "extract",
-            message: "error extracting",
-            level: 1,
-            auxiliary: {
-              error: {
-                value: e.message,
-                type: "string",
-              },
-              trace: {
-                value: e.stack,
-                type: "string",
-              },
-            },
-          });
+  //     const result = await this.extractHandler
+  //       .extract({
+  //         instruction,
+  //         schema,
+  //         llmClient,
+  //         requestId,
+  //         domSettleTimeoutMs,
+  //         useTextExtract,
+  //         selector,
+  //         iframes,
+  //       })
+  //       .catch((e) => {
+  //         this.stagehand.log({
+  //           category: "extract",
+  //           message: "error extracting",
+  //           level: 1,
+  //           auxiliary: {
+  //             error: {
+  //               value: e.message,
+  //               type: "string",
+  //             },
+  //             trace: {
+  //               value: e.stack,
+  //               type: "string",
+  //             },
+  //           },
+  //         });
 
-          if (this.stagehand.enableCaching) {
-            this.stagehand.llmProvider.cleanRequestCache(requestId);
-          }
+  //         if (this.stagehand.enableCaching) {
+  //           this.stagehand.llmProvider.cleanRequestCache(requestId);
+  //         }
 
-          throw e;
-        });
+  //         throw e;
+  //       });
 
-      this.stagehand.addToHistory("extract", instructionOrOptions, result);
+  //     this.stagehand.addToHistory("extract", instructionOrOptions, result);
 
-      return result;
-    } catch (err: unknown) {
-      if (err instanceof StagehandError || err instanceof StagehandAPIError) {
-        throw err;
-      }
-      throw new StagehandDefaultError(err);
-    }
-  }
+  //     return result;
+  //   } catch (err: unknown) {
+  //     if (err instanceof StagehandError || err instanceof StagehandAPIError) {
+  //       throw err;
+  //     }
+  //     throw new StagehandDefaultError(err);
+  //   }
+  // }
 
-  async observe(
-    instructionOrOptions?: string | ObserveOptions,
-  ): Promise<ObserveResult[]> {
-    try {
-      if (!this.observeHandler) {
-        throw new HandlerNotInitializedError("Observe");
-      }
+  // async observe(
+  //   instructionOrOptions?: string | ObserveOptions,
+  // ): Promise<ObserveResult[]> {
+  //   try {
+  //     if (!this.observeHandler) {
+  //       throw new HandlerNotInitializedError("Observe");
+  //     }
 
-      await clearOverlays(this.page);
+  //     await clearOverlays(this.page);
 
-      const options: ObserveOptions =
-        typeof instructionOrOptions === "string"
-          ? { instruction: instructionOrOptions }
-          : instructionOrOptions || {};
+  //     const options: ObserveOptions =
+  //       typeof instructionOrOptions === "string"
+  //         ? { instruction: instructionOrOptions }
+  //         : instructionOrOptions || {};
 
-      const {
-        instruction,
-        modelName,
-        modelClientOptions,
-        domSettleTimeoutMs,
-        returnAction = true,
-        onlyVisible,
-        drawOverlay,
-        iframes,
-      } = options;
+  //     const {
+  //       instruction,
+  //       modelName,
+  //       modelClientOptions,
+  //       domSettleTimeoutMs,
+  //       returnAction = true,
+  //       onlyVisible,
+  //       drawOverlay,
+  //       iframes,
+  //     } = options;
 
-      if (this.api) {
-        const opts = { ...options, frameId: this.rootFrameId };
-        const result = await this.api.observe(opts);
-        this.stagehand.addToHistory("observe", instructionOrOptions, result);
-        return result;
-      }
+  //     if (this.api) {
+  //       const opts = { ...options, frameId: this.rootFrameId };
+  //       const result = await this.api.observe(opts);
+  //       this.stagehand.addToHistory("observe", instructionOrOptions, result);
+  //       return result;
+  //     }
 
-      const requestId = Math.random().toString(36).substring(2);
-      const llmClient = modelName
-        ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
-        : this.llmClient;
+  //     const requestId = Math.random().toString(36).substring(2);
+  //     const llmClient = modelName
+  //       ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
+  //       : this.llmClient;
 
-      this.stagehand.log({
-        category: "observe",
-        message: "running observe",
-        level: 1,
-        auxiliary: {
-          instruction: {
-            value: instruction,
-            type: "string",
-          },
-          requestId: {
-            value: requestId,
-            type: "string",
-          },
-          modelName: {
-            value: llmClient.modelName,
-            type: "string",
-          },
-          ...(onlyVisible !== undefined && {
-            onlyVisible: {
-              value: onlyVisible ? "true" : "false",
-              type: "boolean",
-            },
-          }),
-        },
-      });
+  //     this.stagehand.log({
+  //       category: "observe",
+  //       message: "running observe",
+  //       level: 1,
+  //       auxiliary: {
+  //         instruction: {
+  //           value: instruction,
+  //           type: "string",
+  //         },
+  //         requestId: {
+  //           value: requestId,
+  //           type: "string",
+  //         },
+  //         modelName: {
+  //           value: llmClient.modelName,
+  //           type: "string",
+  //         },
+  //         ...(onlyVisible !== undefined && {
+  //           onlyVisible: {
+  //             value: onlyVisible ? "true" : "false",
+  //             type: "boolean",
+  //           },
+  //         }),
+  //       },
+  //     });
 
-      const result = await this.observeHandler
-        .observe({
-          instruction,
-          llmClient,
-          requestId,
-          domSettleTimeoutMs,
-          returnAction,
-          onlyVisible,
-          drawOverlay,
-          iframes,
-        })
-        .catch((e) => {
-          this.stagehand.log({
-            category: "observe",
-            message: "error observing",
-            level: 1,
-            auxiliary: {
-              error: {
-                value: e.message,
-                type: "string",
-              },
-              trace: {
-                value: e.stack,
-                type: "string",
-              },
-              requestId: {
-                value: requestId,
-                type: "string",
-              },
-              instruction: {
-                value: instruction,
-                type: "string",
-              },
-            },
-          });
+  //     const result = await this.observeHandler
+  //       .observe({
+  //         instruction,
+  //         llmClient,
+  //         requestId,
+  //         domSettleTimeoutMs,
+  //         returnAction,
+  //         onlyVisible,
+  //         drawOverlay,
+  //         iframes,
+  //       })
+  //       .catch((e) => {
+  //         this.stagehand.log({
+  //           category: "observe",
+  //           message: "error observing",
+  //           level: 1,
+  //           auxiliary: {
+  //             error: {
+  //               value: e.message,
+  //               type: "string",
+  //             },
+  //             trace: {
+  //               value: e.stack,
+  //               type: "string",
+  //             },
+  //             requestId: {
+  //               value: requestId,
+  //               type: "string",
+  //             },
+  //             instruction: {
+  //               value: instruction,
+  //               type: "string",
+  //             },
+  //           },
+  //         });
 
-          if (this.stagehand.enableCaching) {
-            this.stagehand.llmProvider.cleanRequestCache(requestId);
-          }
+  //         if (this.stagehand.enableCaching) {
+  //           this.stagehand.llmProvider.cleanRequestCache(requestId);
+  //         }
 
-          throw e;
-        });
+  //         throw e;
+  //       });
 
-      this.stagehand.addToHistory("observe", instructionOrOptions, result);
+  //     this.stagehand.addToHistory("observe", instructionOrOptions, result);
 
-      return result;
-    } catch (err: unknown) {
-      if (err instanceof StagehandError || err instanceof StagehandAPIError) {
-        throw err;
-      }
-      throw new StagehandDefaultError(err);
-    }
-  }
+  //     return result;
+  //   } catch (err: unknown) {
+  //     if (err instanceof StagehandError || err instanceof StagehandAPIError) {
+  //       throw err;
+  //     }
+  //     throw new StagehandDefaultError(err);
+  //   }
+  // }
 
   /**
    * Get or create a CDP session for the given target.

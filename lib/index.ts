@@ -23,16 +23,16 @@ import {
 } from "../types/stagehand";
 import { StagehandContext } from "./StagehandContext";
 import { StagehandPage } from "./StagehandPage";
-import { StagehandAPI } from "./api";
+// import { StagehandAPI } from "./api";
 import { scriptContent } from "./dom/build/scriptContent";
-import { LLMClient } from "./llm/LLMClient";
-import { LLMProvider } from "./llm/LLMProvider";
+// import { LLMClient } from "./llm/LLMClient";
+// import { LLMProvider } from "./llm/LLMProvider";
 import { ClientOptions } from "../types/model";
 import { isRunningInBun, loadApiKeyFromEnv } from "./utils";
 import { ApiResponse, ErrorResponse } from "@/types/api";
 import { AgentExecuteOptions, AgentResult } from "../types/agent";
-import { StagehandAgentHandler } from "./handlers/agentHandler";
-import { StagehandOperatorHandler } from "./handlers/operatorHandler";
+// import { StagehandAgentHandler } from "./handlers/agentHandler";
+// import { StagehandOperatorHandler } from "./handlers/operatorHandler";
 import { StagehandLogger } from "./logger";
 
 import {
@@ -372,7 +372,7 @@ export class Stagehand {
   public readonly debugDom: boolean;
   public readonly headless: boolean;
   public verbose: 0 | 1 | 2;
-  public llmProvider: LLMProvider;
+  // public llmProvider: LLMProvider;
   public enableCaching: boolean;
   protected apiKey: string | undefined;
   private projectId: string | undefined;
@@ -380,11 +380,11 @@ export class Stagehand {
   private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   public variables: { [key: string]: unknown };
   private contextPath?: string;
-  public llmClient: LLMClient;
+  // public llmClient: LLMClient;
   public readonly userProvidedInstructions?: string;
   private usingAPI: boolean;
   private modelName: AvailableModel;
-  public apiClient: StagehandAPI | undefined;
+  // public apiClient: StagehandAPI | undefined;
   public readonly waitForCaptchaSolves: boolean;
   private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   public readonly selfHeal: boolean;
@@ -560,8 +560,8 @@ export class Stagehand {
       enableCaching ??
       (process.env.ENABLE_CACHING && process.env.ENABLE_CACHING === "true");
 
-    this.llmProvider =
-      llmProvider || new LLMProvider(this.logger, this.enableCaching);
+    // this.llmProvider =
+    //   llmProvider || new LLMProvider(this.logger, this.enableCaching);
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
 
@@ -590,60 +590,60 @@ export class Stagehand {
 
     let modelApiKey: string | undefined;
 
-    if (!modelClientOptions?.apiKey) {
-      // If no API key is provided, try to load it from the environment
-      if (LLMProvider.getModelProvider(this.modelName) === "aisdk") {
-        modelApiKey = loadApiKeyFromEnv(
-          this.modelName.split("/")[0],
-          this.logger,
-        );
-      } else {
-        // Temporary add for legacy providers
-        modelApiKey =
-          LLMProvider.getModelProvider(this.modelName) === "openai"
-            ? process.env.OPENAI_API_KEY ||
-              this.llmClient?.clientOptions?.apiKey
-            : LLMProvider.getModelProvider(this.modelName) === "anthropic"
-              ? process.env.ANTHROPIC_API_KEY ||
-                this.llmClient?.clientOptions?.apiKey
-              : LLMProvider.getModelProvider(this.modelName) === "google"
-                ? process.env.GOOGLE_API_KEY ||
-                  this.llmClient?.clientOptions?.apiKey
-                : undefined;
-      }
-      this.modelClientOptions = {
-        ...modelClientOptions,
-        apiKey: modelApiKey,
-      };
-    } else {
+    // if (!modelClientOptions?.apiKey) {
+    //   // If no API key is provided, try to load it from the environment
+    //   if (LLMProvider.getModelProvider(this.modelName) === "aisdk") {
+    //     modelApiKey = loadApiKeyFromEnv(
+    //       this.modelName.split("/")[0],
+    //       this.logger,
+    //     );
+    //   } else {
+    //     // Temporary add for legacy providers
+    //     modelApiKey =
+    //       LLMProvider.getModelProvider(this.modelName) === "openai"
+    //         ? process.env.OPENAI_API_KEY ||
+    //           this.llmClient?.clientOptions?.apiKey
+    //         : LLMProvider.getModelProvider(this.modelName) === "anthropic"
+    //           ? process.env.ANTHROPIC_API_KEY ||
+    //             this.llmClient?.clientOptions?.apiKey
+    //           : LLMProvider.getModelProvider(this.modelName) === "google"
+    //             ? process.env.GOOGLE_API_KEY ||
+    //               this.llmClient?.clientOptions?.apiKey
+    //             : undefined;
+    //   }
+    //   this.modelClientOptions = {
+    //     ...modelClientOptions,
+    //     apiKey: modelApiKey,
+    //   };
+    // } else {
       this.modelClientOptions = modelClientOptions;
-    }
+    // }
 
-    if (llmClient) {
-      this.llmClient = llmClient;
-      this.logger({
-        category: "init",
-        message: "Custom LLM clients are currently not supported in API mode",
-        level: 1,
-      });
-      this.usingAPI = false;
-    } else {
-      try {
-        // try to set a default LLM client
-        this.llmClient = this.llmProvider.getClient(
-          this.modelName,
-          this.modelClientOptions,
-        );
-      } catch (error) {
-        if (
-          error instanceof UnsupportedAISDKModelProviderError ||
-          error instanceof InvalidAISDKModelFormatError
-        ) {
-          throw error;
-        }
-        this.llmClient = undefined;
-      }
-    }
+    // if (llmClient) {
+    //   this.llmClient = llmClient;
+    //   this.logger({
+    //     category: "init",
+    //     message: "Custom LLM clients are currently not supported in API mode",
+    //     level: 1,
+    //   });
+    //   this.usingAPI = false;
+    // } else {
+    //   try {
+    //     // try to set a default LLM client
+    //     this.llmClient = this.llmProvider.getClient(
+    //       this.modelName,
+    //       this.modelClientOptions,
+    //     );
+    //   } catch (error) {
+    //     if (
+    //       error instanceof UnsupportedAISDKModelProviderError ||
+    //       error instanceof InvalidAISDKModelFormatError
+    //     ) {
+    //       throw error;
+    //     }
+    //     this.llmClient = undefined;
+    //   }
+    // }
 
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = localBrowserLaunchOptions?.headless ?? false;
@@ -755,32 +755,32 @@ export class Stagehand {
       );
     }
 
-    if (this.usingAPI) {
-      this.apiClient = new StagehandAPI({
-        apiKey: this.apiKey,
-        projectId: this.projectId,
-        logger: this.logger,
-      });
+    // if (this.usingAPI) {
+    //   this.apiClient = new StagehandAPI({
+    //     apiKey: this.apiKey,
+    //     projectId: this.projectId,
+    //     logger: this.logger,
+    //   });
 
-      const modelApiKey = this.modelClientOptions?.apiKey;
-      const { sessionId, available } = await this.apiClient.init({
-        modelName: this.modelName,
-        modelApiKey: modelApiKey,
-        domSettleTimeoutMs: this.domSettleTimeoutMs,
-        verbose: this.verbose,
-        debugDom: this.debugDom,
-        systemPrompt: this.userProvidedInstructions,
-        selfHeal: this.selfHeal,
-        waitForCaptchaSolves: this.waitForCaptchaSolves,
-        actionTimeoutMs: this.actTimeoutMs,
-        browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
-        browserbaseSessionID: this.browserbaseSessionID,
-      });
-      if (!available) {
-        this.apiClient = null;
-      }
-      this.browserbaseSessionID = sessionId;
-    }
+    //   const modelApiKey = this.modelClientOptions?.apiKey;
+    //   const { sessionId, available } = await this.apiClient.init({
+    //     modelName: this.modelName,
+    //     modelApiKey: modelApiKey,
+    //     domSettleTimeoutMs: this.domSettleTimeoutMs,
+    //     verbose: this.verbose,
+    //     debugDom: this.debugDom,
+    //     systemPrompt: this.userProvidedInstructions,
+    //     selfHeal: this.selfHeal,
+    //     waitForCaptchaSolves: this.waitForCaptchaSolves,
+    //     actionTimeoutMs: this.actTimeoutMs,
+    //     browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
+    //     browserbaseSessionID: this.browserbaseSessionID,
+    //   });
+    //   if (!available) {
+    //     this.apiClient = null;
+    //   }
+    //   this.browserbaseSessionID = sessionId;
+    // }
 
     const { browser, context, debugUrl, sessionUrl, contextPath, sessionId } =
       await getBrowser(
@@ -855,28 +855,27 @@ export class Stagehand {
 
   async close(): Promise<void> {
     this._isClosed = true;
-    if (this.apiClient) {
-      const response = await this.apiClient.end();
-      const body: ApiResponse<unknown> = await response.json();
-      if (!body.success) {
-        if (response.status == 409) {
-          this.log({
-            category: "close",
-            message:
-              "Warning: attempted to end a session that is not currently active",
-            level: 0,
-          });
-        } else {
-          throw new StagehandError((body as ErrorResponse).message);
-        }
-      }
-      this.apiClient = null;
-      return;
-    } else {
-      await this.context.close();
-      if (this._browser) {
-        await this._browser.close();
-      }
+    // if (this.apiClient) {
+    //   const response = await this.apiClient.end();
+    //   const body: ApiResponse<unknown> = await response.json();
+    //   if (!body.success) {
+    //     if (response.status == 409) {
+    //       this.log({
+    //         category: "close",
+    //         message:
+    //           "Warning: attempted to end a session that is not currently active",
+    //         level: 0,
+    //       });
+    //     } else {
+    //       throw new StagehandError((body as ErrorResponse).message);
+    //     }
+    //   }
+    //   this.apiClient = null;
+    //   return;
+    // }
+    await this.context.close();
+    if (this._browser) {
+      await this._browser.close();
     }
 
     if (
@@ -909,94 +908,94 @@ export class Stagehand {
     });
   }
 
-  /**
-   * Create an agent instance that can be executed with different instructions
-   * @returns An agent instance with execute() method
-   */
-  agent(options?: AgentConfig): {
-    execute: (
-      instructionOrOptions: string | AgentExecuteOptions,
-    ) => Promise<AgentResult>;
-  } {
-    if (!options || !options.provider) {
-      // use open operator agent
-      return {
-        execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
-          return new StagehandOperatorHandler(
-            this.stagehandPage,
-            this.logger,
-            this.llmClient,
-          ).execute(instructionOrOptions);
-        },
-      };
-    }
+  // /**
+  //  * Create an agent instance that can be executed with different instructions
+  //  * @returns An agent instance with execute() method
+  //  */
+  // agent(options?: AgentConfig): {
+  //   execute: (
+  //     instructionOrOptions: string | AgentExecuteOptions,
+  //   ) => Promise<AgentResult>;
+  // } {
+  //   if (!options || !options.provider) {
+  //     // use open operator agent
+  //     return {
+  //       execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
+  //         return new StagehandOperatorHandler(
+  //           this.stagehandPage,
+  //           this.logger,
+  //           this.llmClient,
+  //         ).execute(instructionOrOptions);
+  //       },
+  //     };
+  //   }
 
-    const agentHandler = new StagehandAgentHandler(
-      this,
-      this.stagehandPage,
-      this.logger,
-      {
-        modelName: options.model,
-        clientOptions: options.options,
-        userProvidedInstructions:
-          options.instructions ??
-          `You are a helpful assistant that can use a web browser.
-      You are currently on the following page: ${this.stagehandPage.page.url()}.
-      Do not ask follow up questions, the user will trust your judgement.`,
-        agentType: options.provider,
-        experimental: this.experimental,
-      },
-    );
+  //   const agentHandler = new StagehandAgentHandler(
+  //     this,
+  //     this.stagehandPage,
+  //     this.logger,
+  //     {
+  //       modelName: options.model,
+  //       clientOptions: options.options,
+  //       userProvidedInstructions:
+  //         options.instructions ??
+  //         `You are a helpful assistant that can use a web browser.
+  //     You are currently on the following page: ${this.stagehandPage.page.url()}.
+  //     Do not ask follow up questions, the user will trust your judgement.`,
+  //       agentType: options.provider,
+  //       experimental: this.experimental,
+  //     },
+  //   );
 
-    this.log({
-      category: "agent",
-      message: "Creating agent instance",
-      level: 1,
-    });
+  //   this.log({
+  //     category: "agent",
+  //     message: "Creating agent instance",
+  //     level: 1,
+  //   });
 
-    return {
-      execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
-        const executeOptions: AgentExecuteOptions =
-          typeof instructionOrOptions === "string"
-            ? { instruction: instructionOrOptions }
-            : instructionOrOptions;
+  //   return {
+  //     execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
+  //       const executeOptions: AgentExecuteOptions =
+  //         typeof instructionOrOptions === "string"
+  //           ? { instruction: instructionOrOptions }
+  //           : instructionOrOptions;
 
-        if (!executeOptions.instruction) {
-          throw new StagehandError(
-            "Instruction is required for agent execution",
-          );
-        }
+  //       if (!executeOptions.instruction) {
+  //         throw new StagehandError(
+  //           "Instruction is required for agent execution",
+  //         );
+  //       }
 
-        if (this.usingAPI) {
-          if (!this.apiClient) {
-            throw new StagehandNotInitializedError("API client");
-          }
+  //       if (this.usingAPI) {
+  //         if (!this.apiClient) {
+  //           throw new StagehandNotInitializedError("API client");
+  //         }
 
-          if (!options.options) {
-            options.options = {};
-          }
+  //         if (!options.options) {
+  //           options.options = {};
+  //         }
 
-          if (options.provider === "anthropic") {
-            options.options.apiKey = process.env.ANTHROPIC_API_KEY;
-          } else if (options.provider === "openai") {
-            options.options.apiKey = process.env.OPENAI_API_KEY;
-          } else if (options.provider === "google") {
-            options.options.apiKey = process.env.GOOGLE_API_KEY;
-          }
+  //         if (options.provider === "anthropic") {
+  //           options.options.apiKey = process.env.ANTHROPIC_API_KEY;
+  //         } else if (options.provider === "openai") {
+  //           options.options.apiKey = process.env.OPENAI_API_KEY;
+  //         } else if (options.provider === "google") {
+  //           options.options.apiKey = process.env.GOOGLE_API_KEY;
+  //         }
 
-          if (!options.options.apiKey) {
-            throw new StagehandError(
-              `API key not found for \`${options.provider}\` provider. Please set the ${options.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} environment variable or pass an apiKey in the options object.`,
-            );
-          }
+  //         if (!options.options.apiKey) {
+  //           throw new StagehandError(
+  //             `API key not found for \`${options.provider}\` provider. Please set the ${options.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} environment variable or pass an apiKey in the options object.`,
+  //           );
+  //         }
 
-          return await this.apiClient.agentExecute(options, executeOptions);
-        }
+  //         return await this.apiClient.agentExecute(options, executeOptions);
+  //       }
 
-        return await agentHandler.execute(executeOptions);
-      },
-    };
-  }
+  //       return await agentHandler.execute(executeOptions);
+  //     },
+  //   };
+  // }
 }
 
 export * from "../types/browser";
@@ -1007,6 +1006,6 @@ export * from "../types/playwright";
 export * from "../types/stagehand";
 export * from "../types/operator";
 export * from "../types/agent";
-export * from "./llm/LLMClient";
+// export * from "./llm/LLMClient";
 export * from "../types/stagehandErrors";
 export * from "../types/stagehandApiErrors";
