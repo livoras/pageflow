@@ -7,42 +7,26 @@ import path from "path";
 import { BrowserResult } from "../types/browser";
 import { EnhancedContext } from "../types/context";
 import { LogLine } from "../types/log";
-import { AvailableModel } from "../types/model";
 import { BrowserContext, Page } from "../types/page";
 import {
   ConstructorParams,
   InitResult,
   LocalBrowserLaunchOptions,
-  AgentConfig,
-  StagehandMetrics,
-  StagehandFunctionName,
-  HistoryEntry,
-  ActOptions,
-  ExtractOptions,
-  ObserveOptions,
 } from "../types/stagehand";
 import { StagehandContext } from "./StagehandContext";
 import { StagehandPage } from "./StagehandPage";
 import { scriptContent } from "./dom/build/scriptContent";
-import { ClientOptions } from "../types/model";
 
 import {
   StagehandError,
   StagehandNotInitializedError,
   MissingEnvironmentVariableError,
-  UnsupportedModelError,
-  UnsupportedAISDKModelProviderError,
-  InvalidAISDKModelFormatError,
   StagehandInitError,
 } from "../types/stagehandErrors";
-import { z } from "zod/v3";
-import { GotoOptions } from "@/types/playwright";
 
 dotenv.config({ path: ".env" });
 
-const DEFAULT_MODEL_NAME = "openai/gpt-4.1-mini";
-
-const defaultLogger = async (logLine: LogLine, disablePino?: boolean) => {
+const defaultLogger = async (logLine: LogLine) => {
   console.log(logLine.message);
 };
 
@@ -419,33 +403,18 @@ export class Stagehand {
       apiKey,
       projectId,
       verbose,
-      llmProvider,
-      llmClient,
       logger,
       browserbaseSessionCreateParams,
       domSettleTimeoutMs,
-      enableCaching,
       browserbaseSessionID,
-      modelName,
-      modelClientOptions,
-      systemPrompt,
-      useAPI = true,
       localBrowserLaunchOptions,
       waitForCaptchaSolves = false,
-      logInferenceToFile = false,
-      selfHeal = false,
-      disablePino,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
   ) {
-    this.externalLogger =
-      logger || ((logLine: LogLine) => defaultLogger(logLine, disablePino));
+    this.externalLogger = logger || ((logLine: LogLine) => defaultLogger(logLine));
 
-
-    this.enableCaching =
-      enableCaching ??
-      (process.env.ENABLE_CACHING && process.env.ENABLE_CACHING === "true");
 
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
