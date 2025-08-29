@@ -23,7 +23,6 @@ import {
   StagehandDefaultError,
   ExperimentalApiConflictError,
 } from "../types/stagehandErrors";
-import { StagehandAPIError } from "@/types/stagehandApiErrors";
 import { scriptContent } from "@/lib/dom/build/scriptContent";
 import type { Protocol } from "devtools-protocol";
 

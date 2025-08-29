@@ -45,10 +45,10 @@ export class StagehandContext {
                   pwPage,
                   this.stagehand,
                   this,
-                  this.stagehand.llmClient,
-                  this.stagehand.userProvidedInstructions,
-                  this.stagehand.apiClient,
-                  this.stagehand.waitForCaptchaSolves,
+                  null,
+                  undefined,
+                  null,
+                  false,
                 );
                 this.pageMap.set(pwPage, stagehandPage);
               }
@@ -68,10 +68,10 @@ export class StagehandContext {
       page,
       this.stagehand,
       this,
-      this.stagehand.llmClient,
-      this.stagehand.userProvidedInstructions,
-      this.stagehand.apiClient,
-      this.stagehand.waitForCaptchaSolves,
+      null,
+      undefined,
+      null,
+      false,
     ).init();
     this.pageMap.set(page, stagehandPage);
     return stagehandPage;
@@ -87,19 +87,11 @@ export class StagehandContext {
       instance
         .attachFrameNavigatedListener(pwPage)
         .catch((err) =>
-          stagehand.logger({
-            category: "cdp",
-            message: `Failed to attach frameNavigated listener: ${err}`,
-            level: 0,
-          }),
+          console.log(`Failed to attach frameNavigated listener: ${err}`)
         )
         .finally(() =>
           instance.handleNewPlaywrightPage(pwPage).catch((err) =>
-            stagehand.logger({
-              category: "context",
-              message: `Failed to initialise new page: ${err}`,
-              level: 0,
-            }),
+            console.log(`Failed to initialise new page: ${err}`)
           ),
         );
     });

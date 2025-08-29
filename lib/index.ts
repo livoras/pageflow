@@ -25,8 +25,6 @@ import { StagehandContext } from "./StagehandContext";
 import { StagehandPage } from "./StagehandPage";
 import { scriptContent } from "./dom/build/scriptContent";
 import { ClientOptions } from "../types/model";
-import { ApiResponse, ErrorResponse } from "@/types/api";
-import { AgentExecuteOptions, AgentResult } from "../types/agent";
 
 import {
   StagehandError,
@@ -815,7 +813,4 @@ export * from "../types/model";
 export * from "../types/page";
 export * from "../types/playwright";
 export * from "../types/stagehand";
-export * from "../types/operator";
-export * from "../types/agent";
 export * from "../types/stagehandErrors";
-export * from "../types/stagehandApiErrors";
