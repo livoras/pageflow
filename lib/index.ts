@@ -351,30 +351,17 @@ export class Stagehand {
   public readonly debugDom: boolean;
   public readonly headless: boolean;
   public verbose: 0 | 1 | 2;
-  // public llmProvider: LLMProvider;
-  public enableCaching: boolean;
   protected apiKey: string | undefined;
   private projectId: string | undefined;
   private externalLogger?: (logLine: LogLine) => void;
   private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   public variables: { [key: string]: unknown };
   private contextPath?: string;
-  public readonly userProvidedInstructions?: string;
-  private usingAPI: boolean;
-  private modelName: AvailableModel;
   public readonly waitForCaptchaSolves: boolean;
   private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
-  public readonly selfHeal: boolean;
-  private cleanupCalled = false;
-  public readonly actTimeoutMs: number;
-  public readonly logInferenceToFile?: boolean;
-  private disablePino: boolean;
-  private modelClientOptions: ClientOptions;
   private _env: "LOCAL" | "BROWSERBASE";
   private _browser: Browser | undefined;
   private _isClosed: boolean = false;
-  private _history: Array<HistoryEntry> = [];
-  public readonly experimental: boolean;
   private _livePageProxy?: Page;
 
   private createLivePageProxy<T extends Page>(): T {
@@ -405,9 +392,6 @@ export class Stagehand {
     return new Proxy(target, handler);
   }
 
-  public get history(): ReadonlyArray<HistoryEntry> {
-    return Object.freeze([...this._history]);
-  }
   protected setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;
   }
@@ -422,75 +406,12 @@ export class Stagehand {
     return this._livePageProxy;
   }
 
-  public stagehandMetrics: StagehandMetrics = {
-    actPromptTokens: 0,
-    actCompletionTokens: 0,
-    actInferenceTimeMs: 0,
-    extractPromptTokens: 0,
-    extractCompletionTokens: 0,
-    extractInferenceTimeMs: 0,
-    observePromptTokens: 0,
-    observeCompletionTokens: 0,
-    observeInferenceTimeMs: 0,
-    agentPromptTokens: 0,
-    agentCompletionTokens: 0,
-    agentInferenceTimeMs: 0,
-    totalPromptTokens: 0,
-    totalCompletionTokens: 0,
-    totalInferenceTimeMs: 0,
-  };
 
-  public get metrics(): StagehandMetrics {
-    return this.stagehandMetrics;
-  }
 
   public get isClosed(): boolean {
     return this._isClosed;
   }
 
-  public updateMetrics(
-    functionName: StagehandFunctionName,
-    promptTokens: number,
-    completionTokens: number,
-    inferenceTimeMs: number,
-  ): void {
-    switch (functionName) {
-      case StagehandFunctionName.ACT:
-        this.stagehandMetrics.actPromptTokens += promptTokens;
-        this.stagehandMetrics.actCompletionTokens += completionTokens;
-        this.stagehandMetrics.actInferenceTimeMs += inferenceTimeMs;
-        break;
-
-      case StagehandFunctionName.EXTRACT:
-        this.stagehandMetrics.extractPromptTokens += promptTokens;
-        this.stagehandMetrics.extractCompletionTokens += completionTokens;
-        this.stagehandMetrics.extractInferenceTimeMs += inferenceTimeMs;
-        break;
-
-      case StagehandFunctionName.OBSERVE:
-        this.stagehandMetrics.observePromptTokens += promptTokens;
-        this.stagehandMetrics.observeCompletionTokens += completionTokens;
-        this.stagehandMetrics.observeInferenceTimeMs += inferenceTimeMs;
-        break;
-
-      case StagehandFunctionName.AGENT:
-        this.stagehandMetrics.agentPromptTokens += promptTokens;
-        this.stagehandMetrics.agentCompletionTokens += completionTokens;
-        this.stagehandMetrics.agentInferenceTimeMs += inferenceTimeMs;
-        break;
-    }
-    this.updateTotalMetrics(promptTokens, completionTokens, inferenceTimeMs);
-  }
-
-  private updateTotalMetrics(
-    promptTokens: number,
-    completionTokens: number,
-    inferenceTimeMs: number,
-  ): void {
-    this.stagehandMetrics.totalPromptTokens += promptTokens;
-    this.stagehandMetrics.totalCompletionTokens += completionTokens;
-    this.stagehandMetrics.totalInferenceTimeMs += inferenceTimeMs;
-  }
 
   constructor(
     {
@@ -514,7 +435,6 @@ export class Stagehand {
       logInferenceToFile = false,
       selfHeal = false,
       disablePino,
-      experimental = false,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -547,64 +467,16 @@ export class Stagehand {
     }
 
     this.verbose = verbose ?? 0;
-    this.modelName = modelName ?? DEFAULT_MODEL_NAME;
-    this.usingAPI = useAPI;
-
-    this.modelClientOptions = modelClientOptions;
 
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = localBrowserLaunchOptions?.headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
     this.browserbaseSessionID = browserbaseSessionID;
-    this.userProvidedInstructions = systemPrompt;
-
-    if (this.usingAPI && env === "LOCAL") {
-      // Make env supersede useAPI
-      this.usingAPI = false;
-    } else if (
-      this.usingAPI &&
-      this.llmClient &&
-      !["openai", "anthropic", "google", "aisdk"].includes(this.llmClient.type)
-    ) {
-      throw new UnsupportedModelError(
-        ["openai", "anthropic", "google", "aisdk"],
-        "API mode",
-      );
-    }
     this.waitForCaptchaSolves = waitForCaptchaSolves;
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
 
-    if (this.usingAPI) {
-      this.registerSignalHandlers();
-    }
-    this.logInferenceToFile = logInferenceToFile;
-    this.selfHeal = selfHeal;
-    this.disablePino = disablePino;
-    this.experimental = experimental;
-    if (this.experimental) {
-      // Disable API mode in experimental mode
-      this.usingAPI = false;
-    }
   }
 
-  private registerSignalHandlers() {
-    const cleanup = async (signal: string) => {
-      if (this.cleanupCalled) return;
-      this.cleanupCalled = true;
-
-      try {
-        await this.close();
-      } catch (err) {
-        console.error("Error ending Browserbase session:", err);
-      } finally {
-        // Exit explicitly once cleanup is done
-        process.exit(0);
-      }
-    };
-
-    process.once("SIGINT", () => void cleanup("SIGINT"));
-    process.once("SIGTERM", () => void cleanup("SIGTERM"));
-  }
 
   public get logger(): (logLine: LogLine) => void {
     return (logLine: LogLine) => {
@@ -787,23 +659,6 @@ export class Stagehand {
     }
   }
 
-  public addToHistory(
-    method: HistoryEntry["method"],
-    parameters:
-      | ActOptions
-      | ExtractOptions<z.AnyZodObject>
-      | ObserveOptions
-      | { url: string; options: GotoOptions }
-      | string,
-    result?: unknown,
-  ): void {
-    this._history.push({
-      method,
-      parameters,
-      result: result ?? null,
-      timestamp: new Date().toISOString(),
-    });
-  }
 
 }
 

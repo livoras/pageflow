@@ -429,7 +429,6 @@ ${scriptContent} \
                   })
                 : await rawGoto(url, options);
 
-              this.stagehand.addToHistory("navigate", { url, options }, result);
 
               if (this.waitForCaptchaSolves) {
                 try {
