@@ -112,6 +112,10 @@ export class StagehandObserveHandler {
           discoveredIframes: frameNodes,
         })));
 
+    // 保存 xpathMap 供直接操作使用
+    (global as any).__stagehand_xpath_map = combinedXpathMap;
+    (global as any).__stagehand_current_page = this.stagehandPage;
+
     // No screenshot or vision-based annotation is performed
     const observationResponse = await observe({
       instruction,

@@ -407,6 +407,12 @@ export class Stagehand {
 
     const handler: ProxyHandler<T> = {
       get: (_t, prop, receiver) => {
+        // 优先从 StagehandPage 获取方法
+        if (prop in this.stagehandPage) {
+          const stagehandValue = Reflect.get(this.stagehandPage, prop, this.stagehandPage);
+          return typeof stagehandValue === "function" ? stagehandValue.bind(this.stagehandPage) : stagehandValue;
+        }
+        // 如果 StagehandPage 没有，则从 Playwright Page 获取
         const real = this.stagehandPage.page as unknown as T;
         const value = Reflect.get(real, prop, receiver);
         return typeof value === "function" ? value.bind(real) : value;

@@ -553,6 +553,93 @@ ${scriptContent} \
     return this.intContext.context;
   }
 
+  // 新增：直接获取页面的 Accessibility Tree（无需 AI）
+  public async getPageStructure(selector?: string) {
+    const { getAccessibilityTree } = require("./a11y/utils");
+    
+    const result = await getAccessibilityTree(
+      false, // experimental
+      this,
+      this.stagehand.logger,
+      selector,
+      undefined // targetFrame
+    );
+    
+    // 保存 xpathMap 供后续操作使用
+    (global as any).__stagehand_xpath_map = result.xpathMap;
+    (global as any).__stagehand_current_page = this;
+    
+    return {
+      simplified: result.simplified,
+      xpathMap: result.xpathMap,
+      idToUrl: result.idToUrl,
+      tree: result.tree
+    };
+  }
+
+  // 新增：直接通过 EncodedId 操作元素
+  public async actByEncodedId(encodedId: string, method: string, args: string[] = []): Promise<void> {
+    const xpathMap = (global as any).__stagehand_xpath_map;
+    if (!xpathMap) {
+      throw new Error("XPath map not available. Run getPageStructure first.");
+    }
+    
+    const xpath = xpathMap[encodedId];
+    if (!xpath) {
+      throw new Error(`No XPath found for EncodedId: ${encodedId}`);
+    }
+    
+    // 使用 evaluate 直接操作 DOM，避免 Playwright 的 __name 错误
+    if (method === 'fill' && args[0]) {
+      await this.page.evaluate(({ xpath, value }) => {
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const element = result.singleNodeValue as HTMLInputElement;
+        if (element) {
+          element.value = value;
+          element.dispatchEvent(new Event('input', { bubbles: true }));
+          element.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, { xpath, value: args[0] });
+    } else if (method === 'click') {
+      await this.page.evaluate(({ xpath }) => {
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const element = result.singleNodeValue as HTMLElement;
+        if (element) {
+          element.click();
+        }
+      }, { xpath });
+    } else if (method === 'select' && args[0]) {
+      await this.page.evaluate(({ xpath, value }) => {
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const element = result.singleNodeValue as HTMLSelectElement;
+        if (element) {
+          element.value = value;
+          element.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, { xpath, value: args[0] });
+    } else if (method === 'check') {
+      await this.page.evaluate(({ xpath }) => {
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const element = result.singleNodeValue as HTMLInputElement;
+        if (element && !element.checked) {
+          element.checked = true;
+          element.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, { xpath });
+    } else if (method === 'uncheck') {
+      await this.page.evaluate(({ xpath }) => {
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const element = result.singleNodeValue as HTMLInputElement;
+        if (element && element.checked) {
+          element.checked = false;
+          element.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, { xpath });
+    } else {
+      throw new Error(`Unsupported method: ${method}`);
+    }
+  }
+
   /**
    * `_waitForSettledDom` waits until the DOM is settled, and therefore is
    * ready for actions to be taken.

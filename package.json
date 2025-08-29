@@ -2,9 +2,9 @@
   "name": "@browserbasehq/stagehand",
   "version": "2.4.4",
   "description": "An AI web browsing framework focused on simplicity and extensibility.",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./lib/index.ts",
+  "module": "./lib/index.ts",
+  "types": "./lib/index.ts",
   "scripts": {
     "example": "pnpm --filter @browserbasehq/stagehand-examples run start",
     "format": "prettier --write .",
