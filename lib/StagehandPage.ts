@@ -8,9 +8,7 @@ import {
   ObserveOptions,
   ObserveResult,
 } from "../types/stagehand";
-import { StagehandAPI } from "./api";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
-import { LLMClient } from "./llm/LLMClient";
 import { StagehandContext } from "./StagehandContext";
 import { EncodedId, EnhancedContext } from "../types/context";
 import {
@@ -38,9 +36,9 @@ export class StagehandPage {
   private rawPage: PlaywrightPage;
   private intPage: Page;
   private intContext: StagehandContext;
-  private llmClient: LLMClient;
+  private llmClient: any;
   private cdpClient: CDPSession | null = null;
-  private api: StagehandAPI;
+  private api: any;
   private userProvidedInstructions?: string;
   private waitForCaptchaSolves: boolean;
   private initialized: boolean = false;
