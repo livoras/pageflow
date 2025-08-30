@@ -17,63 +17,6 @@ export class StagehandDefaultError extends StagehandError {
   }
 }
 
-export class StagehandEnvironmentError extends StagehandError {
-  constructor(
-    currentEnvironment: string,
-    requiredEnvironment: string,
-    feature: string,
-  ) {
-    super(
-      `You seem to be setting the current environment to ${currentEnvironment}.` +
-        `Ensure the environment is set to ${requiredEnvironment} if you want to use ${feature}.`,
-    );
-  }
-}
-
-export class MissingEnvironmentVariableError extends StagehandError {
-  constructor(missingEnvironmentVariable: string, feature: string) {
-    super(
-      `${missingEnvironmentVariable} is required to use ${feature}.` +
-        `Please set ${missingEnvironmentVariable} in your environment.`,
-    );
-  }
-}
-
-export class UnsupportedModelError extends StagehandError {
-  constructor(supportedModels: string[], feature?: string) {
-    super(
-      feature
-        ? `${feature} requires one of the following models: ${supportedModels}`
-        : `please use one of the supported models: ${supportedModels}`,
-    );
-  }
-}
-
-export class UnsupportedModelProviderError extends StagehandError {
-  constructor(supportedProviders: string[], feature?: string) {
-    super(
-      feature
-        ? `${feature} requires one of the following model providers: ${supportedProviders}`
-        : `please use one of the supported model providers: ${supportedProviders}`,
-    );
-  }
-}
-
-export class UnsupportedAISDKModelProviderError extends StagehandError {
-  constructor(provider: string, supportedProviders: string[]) {
-    super(
-      `${provider} is not currently supported for aiSDK. please use one of the supported model providers: ${supportedProviders}`,
-    );
-  }
-}
-
-export class InvalidAISDKModelFormatError extends StagehandError {
-  constructor(modelName: string) {
-    super(
-      `${modelName} does not follow correct format for specifying aiSDK models. Please define your modelName as 'provider/model-name'. For example: \`modelName: 'openai/gpt-4o-mini'\``,
-    );
-  }
-}
 
 export class StagehandNotInitializedError extends StagehandError {
   constructor(prop: string) {
@@ -85,32 +28,6 @@ export class StagehandNotInitializedError extends StagehandError {
   }
 }
 
-export class BrowserbaseSessionNotFoundError extends StagehandError {
-  constructor() {
-    super("No Browserbase session ID found");
-  }
-}
-
-export class CaptchaTimeoutError extends StagehandError {
-  constructor() {
-    super("Captcha timeout");
-  }
-}
-
-export class MissingLLMConfigurationError extends StagehandError {
-  constructor() {
-    super(
-      "No LLM API key or LLM Client configured. An LLM API key or a custom LLM Client " +
-        "is required to use act, extract, or observe.",
-    );
-  }
-}
-
-export class HandlerNotInitializedError extends StagehandError {
-  constructor(handlerType: string) {
-    super(`${handlerType} handler not initialized`);
-  }
-}
 
 export class StagehandInvalidArgumentError extends StagehandError {
   constructor(message: string) {
@@ -124,29 +41,6 @@ export class StagehandElementNotFoundError extends StagehandError {
   }
 }
 
-export class AgentScreenshotProviderError extends StagehandError {
-  constructor(message: string) {
-    super(`ScreenshotProviderError: ${message}`);
-  }
-}
-
-export class StagehandMissingArgumentError extends StagehandError {
-  constructor(message: string) {
-    super(`MissingArgumentError: ${message}`);
-  }
-}
-
-export class CreateChatCompletionResponseError extends StagehandError {
-  constructor(message: string) {
-    super(`CreateChatCompletionResponseError: ${message}`);
-  }
-}
-
-export class StagehandEvalError extends StagehandError {
-  constructor(message: string) {
-    super(`StagehandEvalError: ${message}`);
-  }
-}
 
 export class StagehandDomProcessError extends StagehandError {
   constructor(message: string) {
@@ -162,11 +56,6 @@ export class StagehandClickError extends StagehandError {
   }
 }
 
-export class LLMResponseError extends StagehandError {
-  constructor(primitive: string, message: string) {
-    super(`${primitive} LLM response error: ${message}`);
-  }
-}
 
 export class StagehandIframeError extends StagehandError {
   constructor(frameUrl: string, message: string) {
@@ -188,24 +77,6 @@ export class XPathResolutionError extends StagehandError {
   }
 }
 
-export class ExperimentalApiConflictError extends StagehandError {
-  constructor() {
-    super(
-      "`experimental` mode cannot be used together with the Stagehand API. " +
-        "To use experimental features, set experimental: true, and useApi: false in the stagehand constructor. " +
-        "To use the Stagehand API, set experimental: false and useApi: true in the stagehand constructor. ",
-    );
-  }
-}
-
-export class ExperimentalNotConfiguredError extends StagehandError {
-  constructor(featureName: string) {
-    super(`Feature "${featureName}" is an experimental feature, and cannot be configured when useAPI: true. 
-    Please set experimental: true and useAPI: false in the stagehand constructor to use this feature. 
-    If you wish to use the Stagehand API, please ensure ${featureName} is not defined in your function call, 
-    and set experimental: false, useAPI: true in the Stagehand constructor. `);
-  }
-}
 
 export class ZodSchemaValidationError extends Error {
   constructor(

@@ -45,10 +45,6 @@ export class StagehandContext {
                   pwPage,
                   this.stagehand,
                   this,
-                  null,
-                  undefined,
-                  null,
-                  false,
                 );
                 this.pageMap.set(pwPage, stagehandPage);
               }
@@ -68,10 +64,6 @@ export class StagehandContext {
       page,
       this.stagehand,
       this,
-      null,
-      undefined,
-      null,
-      false,
     ).init();
     this.pageMap.set(page, stagehandPage);
     return stagehandPage;

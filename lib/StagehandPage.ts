@@ -1,25 +1,14 @@
 import type { CDPSession, Page as PlaywrightPage, Frame } from "playwright";
 import { selectors } from "playwright";
 import { z } from "zod/v3";
-import { Page, defaultExtractSchema } from "../types/page";
-import {
-  ExtractOptions,
-  ExtractResult,
-  ObserveOptions,
-  ObserveResult,
-} from "../types/stagehand";
-import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
+import { Page } from "../types/page";
+import { GotoOptions, Stagehand } from "./index";
 import { StagehandContext } from "./StagehandContext";
 import { EncodedId, EnhancedContext } from "../types/context";
 import {
   StagehandError,
   StagehandNotInitializedError,
-  StagehandEnvironmentError,
-  CaptchaTimeoutError,
-  MissingLLMConfigurationError,
-  HandlerNotInitializedError,
   StagehandDefaultError,
-  ExperimentalApiConflictError,
 } from "../types/stagehandErrors";
 import { scriptContent } from "@/lib/dom/build/scriptContent";
 import type { Protocol } from "devtools-protocol";
@@ -36,11 +25,7 @@ export class StagehandPage {
   private rawPage: PlaywrightPage;
   private intPage: Page;
   private intContext: StagehandContext;
-  private llmClient: any;
   private cdpClient: CDPSession | null = null;
-  private api: any;
-  private userProvidedInstructions?: string;
-  private waitForCaptchaSolves: boolean;
   private initialized: boolean = false;
   private readonly cdpClients = new WeakMap<
     PlaywrightPage | Frame,
@@ -64,26 +49,13 @@ export class StagehandPage {
     page: PlaywrightPage,
     stagehand: Stagehand,
     context: StagehandContext,
-    llmClient: LLMClient,
-    userProvidedInstructions?: string,
-    api?: StagehandAPI,
-    waitForCaptchaSolves?: boolean,
   ) {
-    if (stagehand.experimental && api) {
-      throw new ExperimentalApiConflictError();
-    }
     this.rawPage = page;
     // Create a proxy to intercept all method calls and property access
     this.intPage = new Proxy(page, {
       get: (target: PlaywrightPage, prop: keyof PlaywrightPage) => {
-        // Special handling for our enhanced methods before initialization
-        if (
-          !this.initialized &&
-          (prop === ("act" as keyof Page) ||
-            prop === ("extract" as keyof Page) ||
-            prop === ("observe" as keyof Page) ||
-            prop === ("on" as keyof Page))
-        ) {
+        // Special handling for on method before initialization
+        if (!this.initialized && prop === ("on" as keyof Page)) {
           return () => {
             throw new StagehandNotInitializedError(String(prop));
           };
@@ -100,10 +72,6 @@ export class StagehandPage {
 
     this.stagehand = stagehand;
     this.intContext = context;
-    this.llmClient = llmClient;
-    this.api = api;
-    this.userProvidedInstructions = userProvidedInstructions;
-    this.waitForCaptchaSolves = waitForCaptchaSolves ?? false;
 
   }
 
@@ -277,61 +245,6 @@ ${scriptContent} \
     }
   }
 
-  /**
-   * Waits for a captcha to be solved when using Browserbase environment.
-   *
-   * @param timeoutMs - Optional timeout in milliseconds. If provided, the promise will reject if the captcha solving hasn't started within the given time.
-   * @throws StagehandEnvironmentError if called in a LOCAL environment
-   * @throws CaptchaTimeoutError if the timeout is reached before captcha solving starts
-   * @returns Promise that resolves when the captcha is solved
-   */
-  public async waitForCaptchaSolve(timeoutMs?: number) {
-    if (this.stagehand.env === "LOCAL") {
-      throw new StagehandEnvironmentError(
-        this.stagehand.env,
-        "BROWSERBASE",
-        "waitForCaptcha method",
-      );
-    }
-
-    this.stagehand.log({
-      category: "captcha",
-      message: "Waiting for captcha",
-      level: 1,
-    });
-
-    return new Promise<void>((resolve, reject) => {
-      let started = false;
-      let timeoutId: NodeJS.Timeout;
-
-      if (timeoutMs) {
-        timeoutId = setTimeout(() => {
-          if (!started) {
-            reject(new CaptchaTimeoutError());
-          }
-        }, timeoutMs);
-      }
-
-      this.intPage.on("console", (msg) => {
-        if (msg.text() === "browserbase-solving-finished") {
-          this.stagehand.log({
-            category: "captcha",
-            message: "Captcha solving finished",
-            level: 1,
-          });
-          if (timeoutId) clearTimeout(timeoutId);
-          resolve();
-        } else if (msg.text() === "browserbase-solving-started") {
-          started = true;
-          this.stagehand.log({
-            category: "captcha",
-            message: "Captcha solving started",
-            level: 1,
-          });
-        }
-      });
-    });
-  }
 
   async init(): Promise<StagehandPage> {
     try {
@@ -360,27 +273,6 @@ ${scriptContent} \
             };
           }
 
-          // Handle enhanced methods
-          if (prop === "act" || prop === "extract" || prop === "observe") {
-            if (!this.llmClient) {
-              return () => {
-                throw new MissingLLMConfigurationError();
-              };
-            }
-
-            // Use type assertion to safely call the method with proper typing
-            type EnhancedMethod = (
-              options:
-                | ActOptions
-                | ExtractOptions<z.AnyZodObject>
-                | ObserveOptions,
-            ) => Promise<
-              ActResult | ExtractResult<z.AnyZodObject> | ObserveResult[]
-            >;
-
-            const method = this[prop as keyof StagehandPage] as EnhancedMethod;
-            return (options: unknown) => method.call(this, options);
-          }
 
           // Handle screenshots with CDP
           if (prop === "screenshot" && this.stagehand.env === "BROWSERBASE") {
@@ -422,21 +314,7 @@ ${scriptContent} \
             const rawGoto: typeof target.goto =
               Object.getPrototypeOf(target).goto.bind(target);
             return async (url: string, options: GotoOptions) => {
-              const result = this.api
-                ? await this.api.goto(url, {
-                    ...options,
-                    frameId: this.rootFrameId,
-                  })
-                : await rawGoto(url, options);
-
-
-              if (this.waitForCaptchaSolves) {
-                try {
-                  await this.waitForCaptchaSolve(1000);
-                } catch {
-                  // ignore
-                }
-              }
+              const result = await rawGoto(url, options);
 
               if (this.stagehand.debugDom) {
                 this.stagehand.log({
@@ -469,7 +347,6 @@ ${scriptContent} \
                     page,
                     stagehand,
                     newContext,
-                    this.llmClient,
                   );
 
                   await newStagehandPage.init();
@@ -505,7 +382,7 @@ ${scriptContent} \
       this.initialized = true;
       return this;
     } catch (err: unknown) {
-      if (err instanceof StagehandError || err instanceof StagehandAPIError) {
+      if (err instanceof StagehandError) {
         throw err;
       }
       throw new StagehandDefaultError(err);
