@@ -96,12 +96,26 @@ async function demonstrateUserControl() {
   
   await page.waitForTimeout(500);
   
-  // 查找并选择年龄
-  const ageId = findElementByText(pageData.simplified, "请选择");
-  if (ageId) {
-    console.log(`找到年龄下拉框: ${ageId}`);
-    await page.actByEncodedId(ageId, "select", ["26-35"]);
+  // 查找并选择年龄 - 查找 select 元素而不是 option
+  const ageLines = pageData.simplified.split('\n');
+  let ageSelectId = null;
+  for (let i = 0; i < ageLines.length; i++) {
+    if (ageLines[i].includes('select') && ageLines[i].includes('年龄')) {
+      const match = ageLines[i].match(/\[([^\]]+)\]/);
+      if (match) {
+        ageSelectId = match[1];
+        console.log(`找到年龄下拉框 (select): ${ageSelectId}`);
+        console.log(`  实际找到的行: ${ageLines[i]}`);
+        break;
+      }
+    }
+  }
+  
+  if (ageSelectId) {
+    await page.actByEncodedId(ageSelectId, "select", ["26-35"]);
     console.log("✓ 已选择年龄");
+  } else {
+    console.log("未找到年龄下拉框的 select 元素");
   }
   
   await page.waitForTimeout(500);
