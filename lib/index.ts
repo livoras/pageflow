@@ -1,6 +1,4 @@
-import { Browserbase } from "@browserbasehq/sdk";
 import { Browser, chromium } from "playwright";
-import dotenv from "dotenv";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -24,171 +22,16 @@ import {
   StagehandInitError,
 } from "../types/stagehandErrors";
 
-dotenv.config({ path: ".env" });
 
 const defaultLogger = async (logLine: LogLine) => {
   console.log(logLine.message);
 };
 
 async function getBrowser(
-  apiKey: string | undefined,
-  projectId: string | undefined,
-  env: "LOCAL" | "BROWSERBASE" = "LOCAL",
   headless: boolean = false,
   logger: (message: LogLine) => void,
-  browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams,
-  browserbaseSessionID?: string,
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
 ): Promise<BrowserResult> {
-  if (env === "BROWSERBASE") {
-    if (!apiKey) {
-      throw new MissingEnvironmentVariableError(
-        "BROWSERBASE_API_KEY",
-        "Browserbase",
-      );
-    }
-    if (!projectId) {
-      throw new MissingEnvironmentVariableError(
-        "BROWSERBASE_PROJECT_ID",
-        "Browserbase",
-      );
-    }
-
-    let debugUrl: string | undefined = undefined;
-    let sessionUrl: string | undefined = undefined;
-    let sessionId: string;
-    let connectUrl: string;
-
-    const browserbase = new Browserbase({
-      apiKey,
-    });
-
-    if (browserbaseSessionID) {
-      // Validate the session status
-      try {
-        const session =
-          await browserbase.sessions.retrieve(browserbaseSessionID);
-
-        if (session.status !== "RUNNING") {
-          throw new StagehandError(
-            `Session ${browserbaseSessionID} is not running (status: ${session.status})`,
-          );
-        }
-
-        sessionId = browserbaseSessionID;
-        connectUrl = session.connectUrl;
-
-        logger({
-          category: "init",
-          message: "resuming existing browserbase session...",
-          level: 1,
-          auxiliary: {
-            sessionId: {
-              value: sessionId,
-              type: "string",
-            },
-          },
-        });
-      } catch (error) {
-        logger({
-          category: "init",
-          message: "failed to resume session",
-          level: 0,
-          auxiliary: {
-            error: {
-              value: error.message,
-              type: "string",
-            },
-            trace: {
-              value: error.stack,
-              type: "string",
-            },
-          },
-        });
-        throw error;
-      }
-    } else {
-      // Create new session (existing code)
-      logger({
-        category: "init",
-        message: "creating new browserbase session...",
-        level: 1,
-      });
-
-      if (!projectId) {
-        throw new StagehandError(
-          "BROWSERBASE_PROJECT_ID is required for new Browserbase sessions.",
-        );
-      }
-
-      const session = await browserbase.sessions.create({
-        projectId,
-        ...browserbaseSessionCreateParams,
-        userMetadata: {
-          ...(browserbaseSessionCreateParams?.userMetadata || {}),
-          stagehand: "true",
-        },
-      });
-
-      sessionId = session.id;
-      connectUrl = session.connectUrl;
-      logger({
-        category: "init",
-        message: "created new browserbase session",
-        level: 1,
-        auxiliary: {
-          sessionId: {
-            value: sessionId,
-            type: "string",
-          },
-        },
-      });
-    }
-    if (!connectUrl.includes("connect.connect")) {
-      logger({
-        category: "init",
-        message: "connecting to browserbase session",
-        level: 1,
-        auxiliary: {
-          connectUrl: {
-            value: connectUrl,
-            type: "string",
-          },
-        },
-      });
-    }
-    const browser = await chromium.connectOverCDP(connectUrl);
-
-    const { debuggerUrl } = await browserbase.sessions.debug(sessionId);
-
-    debugUrl = debuggerUrl;
-    sessionUrl = `https://www.browserbase.com/sessions/${sessionId}`;
-
-    logger({
-      category: "init",
-      message: browserbaseSessionID
-        ? "browserbase session resumed"
-        : "browserbase session started",
-      auxiliary: {
-        sessionUrl: {
-          value: sessionUrl,
-          type: "string",
-        },
-        debugUrl: {
-          value: debugUrl,
-          type: "string",
-        },
-        sessionId: {
-          value: sessionId,
-          type: "string",
-        },
-      },
-    });
-
-    const context = browser.contexts()[0];
-
-    return { browser, context, debugUrl, sessionUrl, sessionId, env };
-  } else {
     if (localBrowserLaunchOptions?.cdpUrl) {
       if (!localBrowserLaunchOptions.cdpUrl.includes("connect.connect")) {
         logger({
@@ -208,7 +51,7 @@ async function getBrowser(
         localBrowserLaunchOptions.cdpUrl,
       );
       const context = browser.contexts()[0];
-      return { browser, context, env: "LOCAL" };
+      return { browser, context };
     }
 
     let userDataDir = localBrowserLaunchOptions?.userDataDir;
@@ -286,8 +129,7 @@ async function getBrowser(
 
     await applyStealthScripts(context);
 
-    return { browser, context, contextPath: userDataDir, env: "LOCAL" };
-  }
+    return { browser, context, contextPath: userDataDir };
 }
 
 async function applyStealthScripts(context: BrowserContext) {
@@ -330,20 +172,15 @@ async function applyStealthScripts(context: BrowserContext) {
 export class Stagehand {
   private stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
-  public browserbaseSessionID?: string;
   public readonly domSettleTimeoutMs: number;
   public readonly debugDom: boolean;
   public readonly headless: boolean;
   public verbose: 0 | 1 | 2;
-  protected apiKey: string | undefined;
-  private projectId: string | undefined;
   private externalLogger?: (logLine: LogLine) => void;
-  private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   public variables: { [key: string]: unknown };
   private contextPath?: string;
   public readonly waitForCaptchaSolves: boolean;
   private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
-  private _env: "LOCAL" | "BROWSERBASE";
   private _browser: Browser | undefined;
   private _isClosed: boolean = false;
   private _livePageProxy?: Page;
@@ -399,48 +236,17 @@ export class Stagehand {
 
   constructor(
     {
-      env,
-      apiKey,
-      projectId,
       verbose,
       logger,
-      browserbaseSessionCreateParams,
       domSettleTimeoutMs,
-      browserbaseSessionID,
       localBrowserLaunchOptions,
       waitForCaptchaSolves = false,
-    }: ConstructorParams = {
-      env: "BROWSERBASE",
-    },
+    }: ConstructorParams = {},
   ) {
     this.externalLogger = logger || ((logLine: LogLine) => defaultLogger(logLine));
-
-
-    this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
-    this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
-
-    this._env = env ?? "BROWSERBASE";
-
-    if (this._env === "BROWSERBASE") {
-      if (!this.apiKey) {
-        throw new MissingEnvironmentVariableError(
-          "BROWSERBASE_API_KEY",
-          "Browserbase",
-        );
-      } else if (!this.projectId) {
-        throw new MissingEnvironmentVariableError(
-          "BROWSERBASE_PROJECT_ID",
-          "Browserbase",
-        );
-      }
-    }
-
     this.verbose = verbose ?? 0;
-
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = localBrowserLaunchOptions?.headless ?? false;
-    this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
-    this.browserbaseSessionID = browserbaseSessionID;
     this.waitForCaptchaSolves = waitForCaptchaSolves;
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
 
@@ -453,30 +259,9 @@ export class Stagehand {
     };
   }
 
-  public get env(): "LOCAL" | "BROWSERBASE" {
-    if (this._env === "BROWSERBASE") {
-      if (!this.apiKey) {
-        throw new MissingEnvironmentVariableError(
-          "BROWSERBASE_API_KEY",
-          "Browserbase",
-        );
-      } else if (!this.projectId) {
-        throw new MissingEnvironmentVariableError(
-          "BROWSERBASE_PROJECT_ID",
-          "Browserbase",
-        );
-      }
-      return "BROWSERBASE";
-    } else {
-      return "LOCAL";
-    }
-  }
-
   public get downloadsPath(): string {
-    return this.env === "BROWSERBASE"
-      ? "downloads"
-      : (this.localBrowserLaunchOptions?.downloadsPath ??
-          path.resolve(process.cwd(), "downloads"));
+    return this.localBrowserLaunchOptions?.downloadsPath ??
+          path.resolve(process.cwd(), "downloads");
   }
 
   public get context(): EnhancedContext {
@@ -527,24 +312,15 @@ export class Stagehand {
     //   this.browserbaseSessionID = sessionId;
     // }
 
-    const { browser, context, debugUrl, sessionUrl, contextPath, sessionId } =
+    const { browser, context, contextPath } =
       await getBrowser(
-        this.apiKey,
-        this.projectId,
-        this.env,
         this.headless,
         this.logger,
-        this.browserbaseSessionCreateParams,
-        this.browserbaseSessionID,
         this.localBrowserLaunchOptions,
       ).catch((e) => {
         console.error("Error in init:", e);
         const br: BrowserResult = {
           context: undefined,
-          debugUrl: undefined,
-          sessionUrl: undefined,
-          sessionId: undefined,
-          env: this.env,
         };
         return br;
       });
@@ -581,9 +357,7 @@ export class Stagehand {
       eventsEnabled: true,
     });
 
-    this.browserbaseSessionID = sessionId;
-
-    return { debugUrl, sessionUrl, sessionId };
+    return { debugUrl: undefined, sessionUrl: undefined, sessionId: undefined };
   }
 
   log(logObj: LogLine): void {
@@ -633,7 +407,6 @@ export class Stagehand {
 
 export * from "../types/browser";
 export * from "../types/log";
-export * from "../types/model";
 export * from "../types/page";
 export * from "../types/playwright";
 export * from "../types/stagehand";
