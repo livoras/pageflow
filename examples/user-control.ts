@@ -6,38 +6,6 @@ import { Stagehand } from "../lib";
 import fs from "fs";
 import path from "path";
 
-// 用户自定义的元素查找逻辑
-function findElementByText(structure: string, text: string): string | null {
-  const lines = structure.split('\n');
-  for (const line of lines) {
-    if (line.includes(text)) {
-      const match = line.match(/\[([^\]]+)\]/);
-      if (match) {
-        return match[1]; // 返回 EncodedId
-      }
-    }
-  }
-  return null;
-}
-
-// 查找输入框
-function findInputByLabel(structure: string, labelText: string): string | null {
-  const lines = structure.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].includes(labelText)) {
-      // 查找下一个 textbox 或 input
-      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-        if (lines[j].includes('textbox') || lines[j].includes('input')) {
-          const match = lines[j].match(/\[([^\]]+)\]/);
-          if (match) {
-            return match[1];
-          }
-        }
-      }
-    }
-  }
-  return null;
-}
 
 async function demonstrateUserControl() {
   console.log("=== Stagehand 用户控制模式演示 ===\n");
@@ -73,80 +41,54 @@ async function demonstrateUserControl() {
   console.log(lines.slice(0, 20).join('\n'));
   console.log(`... 共 ${lines.length} 行\n`);
   
-  // 4. 用户逻辑：分析结构并选择要操作的元素
+  // 4. 用户逻辑：使用硬编码的 ID 直接操作元素
   console.log("=== 开始用户控制的操作 ===\n");
   
-  // 查找并填写用户名
-  const usernameId = findInputByLabel(pageData.simplified, "用户名");
-  if (usernameId) {
-    console.log(`找到用户名输入框: ${usernameId}`);
-    await page.actByEncodedId(usernameId, "fill", ["张三"]);
-    console.log("✓ 已填写用户名");
-  }
+  // 填写用户名 - 硬编码 ID: 0-3
+  const usernameId = "0-3";
+  console.log(`用户名输入框: ${usernameId}`);
+  await page.actByEncodedId(usernameId, "fill", ["张三"]);
+  console.log("✓ 已填写用户名");
   
   await page.waitForTimeout(500);
   
-  // 查找并填写邮箱
-  const emailId = findInputByLabel(pageData.simplified, "邮箱");
-  if (emailId) {
-    console.log(`找到邮箱输入框: ${emailId}`);
-    await page.actByEncodedId(emailId, "fill", ["zhangsan@example.com"]);
-    console.log("✓ 已填写邮箱");
-  }
+  // 填写邮箱 - 硬编码 ID: 0-4
+  const emailId = "0-4";
+  console.log(`邮箱输入框: ${emailId}`);
+  await page.actByEncodedId(emailId, "fill", ["zhangsan@example.com"]);
+  console.log("✓ 已填写邮箱");
   
   await page.waitForTimeout(500);
   
-  // 查找并选择年龄 - 查找 select 元素而不是 option
-  const ageLines = pageData.simplified.split('\n');
-  let ageSelectId = null;
-  for (let i = 0; i < ageLines.length; i++) {
-    if (ageLines[i].includes('select') && ageLines[i].includes('年龄')) {
-      const match = ageLines[i].match(/\[([^\]]+)\]/);
-      if (match) {
-        ageSelectId = match[1];
-        console.log(`找到年龄下拉框 (select): ${ageSelectId}`);
-        console.log(`  实际找到的行: ${ageLines[i]}`);
-        break;
-      }
-    }
-  }
-  
-  if (ageSelectId) {
-    await page.actByEncodedId(ageSelectId, "select", ["26-35"]);
-    console.log("✓ 已选择年龄");
-  } else {
-    console.log("未找到年龄下拉框的 select 元素");
-  }
+  // 选择年龄 - 直接使用 select 元素的 ID
+  const ageSelectId = "0-34"; // select 元素
+  console.log(`选择年龄下拉框: ${ageSelectId}`);
+  await page.actByEncodedId(ageSelectId, "select", ["26-35"]);
+  console.log("✓ 已选择年龄");
   
   await page.waitForTimeout(500);
   
-  // 查找并填写留言
-  const messageId = findInputByLabel(pageData.simplified, "留言");
-  if (messageId) {
-    console.log(`找到留言框: ${messageId}`);
-    await page.actByEncodedId(messageId, "fill", ["这是通过 A11y Tree 自动填写的内容"]);
-    console.log("✓ 已填写留言");
-  }
+  // 填写留言 - 硬编码 ID: 0-76
+  const messageId = "0-76";
+  console.log(`留言框: ${messageId}`);
+  await page.actByEncodedId(messageId, "fill", ["这是通过 A11y Tree 自动填写的内容"]);
+  console.log("✓ 已填写留言");
   
   await page.waitForTimeout(500);
   
-  // 查找并勾选同意条款
-  const agreeId = findElementByText(pageData.simplified, "我同意条款");
-  if (agreeId) {
-    console.log(`找到同意条款复选框: ${agreeId}`);
-    await page.actByEncodedId(agreeId, "check");
-    console.log("✓ 已勾选同意条款");
-  }
+  // 勾选同意条款 - 硬编码 ID: 0-83
+  const agreeId = "0-83";
+  console.log(`同意条款复选框: ${agreeId}`);
+  await page.actByEncodedId(agreeId, "check");
+  console.log("✓ 已勾选同意条款");
   
   await page.waitForTimeout(500);
   
-  // 查找并点击提交按钮
-  const submitId = findElementByText(pageData.simplified, "提交");
-  if (submitId) {
-    console.log(`找到提交按钮: ${submitId}`);
-    await page.actByEncodedId(submitId, "click");
-    console.log("✓ 已点击提交");
-  }
+  // 点击提交按钮 - 硬编码 ID: 0-85
+  const submitId = "0-85";
+  console.log(`提交按钮: ${submitId}`);
+  await page.actByEncodedId(submitId, "click");
+  console.log("✓ 已点击提交");
   
   // 等待查看结果
   console.log("\n等待 3 秒查看结果...");
@@ -157,8 +99,8 @@ async function demonstrateUserControl() {
   
   console.log("\n=== 总结 ===");
   console.log("1. 使用 getPageStructure() 获取页面的 A11y Tree");
-  console.log("2. 用户通过自定义逻辑分析树结构，找到目标元素的 EncodedId");
-  console.log("3. 使用 actByEncodedId() 操作元素");
+  console.log("2. 直接使用硬编码的 EncodedId 操作元素");
+  console.log("3. 使用 actByEncodedId() 执行操作");
   console.log("4. 完全不需要 AI，用户掌控所有逻辑");
 }
 

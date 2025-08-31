@@ -1,0 +1,35 @@
+[0-5] RootWebArea: Stagehand 测试页面
+  [0-8] scrollable
+    [0-15] body
+      [0-16] heading: Stagehand 测试页面
+      [0-2] form
+        [0-18] div
+          [0-19] LabelText
+            [0-20] StaticText: 用户名:
+          [0-3] textbox: 用户名:
+        [0-25] div
+          [0-26] LabelText
+            [0-27] StaticText: 邮箱:
+          [0-4] textbox: 邮箱:
+        [0-32] div
+          [0-33] LabelText
+            [0-34] StaticText: 年龄:
+          [0-35] select: 年龄:
+            [40] MenuListPopup
+              [0-42] option: 请选择
+              [0-43] option: 18-25
+              [0-44] option: 26-35
+              [0-45] option: 36-45
+              [0-46] option: 46+
+        [0-74] div
+          [0-75] LabelText
+            [0-76] StaticText: 留言:
+          [0-77] textbox: 留言:
+        [0-84] checkbox: 我同意条款
+        [0-86] button: 提交
+        [0-88] button: 清空
+      [0-90] div
+        [0-91] strong
+          [0-92] StaticText: 结果区域:
+        [0-6] paragraph
+          [0-93] StaticText: 等待操作...
