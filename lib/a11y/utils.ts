@@ -13,7 +13,7 @@ import {
   ID_PATTERN,
   CdpFrame,
 } from "../../types/context";
-import { SimplePageBase } from "../SimplePageBase";
+import { SimplePage } from "../SimplePage";
 import { LogLine } from "../../types/log";
 import {
   ContentFrameNotFoundError,
@@ -121,13 +121,13 @@ const lc = (raw: string): string => {
  * Build mappings from CDP backendNodeIds to HTML tag names and relative XPaths.
  *
  * @param experimental - Whether to use experimental behaviour.
- * @param sp - The SimplePageBase wrapper for Playwright and CDP calls.
+ * @param sp - The SimplePage wrapper for Playwright and CDP calls.
  * @param targetFrame - Optional Playwright.Frame whose DOM subtree to map; defaults to main frame.
  * @returns A Promise resolving to BackendIdMaps containing tagNameMap and xpathMap.
  */
 export async function buildBackendIdMaps(
   experimental: boolean,
-  sp: SimplePageBase,
+  sp: SimplePage,
   targetFrame?: Frame,
 ): Promise<BackendIdMaps> {
   // 0. choose CDP session
@@ -462,12 +462,12 @@ export async function buildHierarchicalTree(
 /**
  * Resolve the CDP frame identifier for a Playwright Frame, handling same-process and OOPIF.
  *
- * @param sp - The SimplePageBase instance for issuing CDP commands.
+ * @param sp - The SimplePage instance for issuing CDP commands.
  * @param frame - The target Playwright.Frame; undefined or main frame yields undefined.
  * @returns A Promise resolving to the CDP frameId string, or undefined for main document.
  */
 export async function getCDPFrameId(
-  sp: SimplePageBase,
+  sp: SimplePage,
   frame?: Frame,
 ): Promise<string | undefined> {
   if (!frame || frame === sp.page.mainFrame()) return undefined;
@@ -512,7 +512,7 @@ export async function getCDPFrameId(
  * Retrieve and build a cleaned accessibility tree for a document or specific iframe.
  * Prunes, formats, and optionally filters by XPath, including scrollable role decoration.
  *
- * @param simplePageBase - The SimplePageBase instance for Playwright and CDP interaction.
+ * @param simplePageBase - The SimplePage instance for Playwright and CDP interaction.
  * @param logger - Logging function for diagnostics and performance metrics.
  * @param selector - Optional XPath to filter the AX tree to a specific subtree.
  * @param targetFrame - Optional Playwright.Frame to scope the AX tree retrieval.
@@ -520,7 +520,7 @@ export async function getCDPFrameId(
  */
 export async function getAccessibilityTree(
   experimental: boolean,
-  simplePageBase: SimplePageBase,
+  simplePageBase: SimplePage,
   logger: (log: LogLine) => void,
   selector?: string,
   targetFrame?: Frame,
@@ -610,14 +610,14 @@ export async function getAccessibilityTree(
  * Filter an accessibility tree to include only the subtree under a specific XPath root.
  * Resolves the DOM node for the XPath and performs a BFS over the AX node graph.
  *
- * @param page - The SimplePageBase instance for issuing CDP commands.
+ * @param page - The SimplePage instance for issuing CDP commands.
  * @param full - The full list of AXNode entries to filter.
  * @param xpath - The XPath expression locating the subtree root.
  * @param targetFrame - Optional Playwright.Frame context for CDP evaluation.
  * @returns A Promise resolving to an array of AXNode representing the filtered subtree.
  */
 async function filterAXTreeByXPath(
-  page: SimplePageBase,
+  page: SimplePage,
   full: AXNode[],
   xpath: string,
   targetFrame?: Frame,
@@ -701,12 +701,12 @@ function decorateRoles(
 /**
  * Get the backendNodeId of the iframe element that contains a given Playwright.Frame.
  *
- * @param sp - The SimplePageBase instance for issuing CDP commands.
+ * @param sp - The SimplePage instance for issuing CDP commands.
  * @param frame - The Playwright.Frame whose host iframe element to locate.
  * @returns A Promise resolving to the backendNodeId of the iframe element, or null if not applicable.
  */
 export async function getFrameRootBackendNodeId(
-  sp: SimplePageBase,
+  sp: SimplePage,
   frame: Frame | undefined,
 ): Promise<number | null> {
   // Return null for top-level or undefined frames
@@ -913,14 +913,14 @@ export function injectSubtrees(
  * Retrieve and merge accessibility trees for the main document and nested iframes.
  * Walks through frame chains if a root XPath is provided, then stitches subtree outlines.
  *
- * @param simplePageBase - The SimplePageBase instance for Playwright and CDP interaction.
+ * @param simplePageBase - The SimplePage instance for Playwright and CDP interaction.
  * @param logger - Logging function for diagnostics and performance.
  * @param rootXPath - Optional absolute XPath to focus the crawl on a subtree across frames.
  * @returns A Promise resolving to CombinedA11yResult with combined tree text, xpath map, and URL map.
  */
 export async function getAccessibilityTreeWithFrames(
   experimental: boolean,
-  simplePageBase: SimplePageBase,
+  simplePageBase: SimplePage,
   logger: (l: LogLine) => void,
   rootXPath?: string,
 ): Promise<CombinedA11yResult> {
@@ -1086,12 +1086,12 @@ export async function getAccessibilityTreeWithFrames(
  *       the element’s `backendNodeId`.
  * - Collects all resulting `backendNodeId`s in a Set and returns them.
  *
- * @param simplePageBase - A SimplePageBase instance with built-in CDP helpers.
+ * @param simplePageBase - A SimplePage instance with built-in CDP helpers.
  * @returns A Promise that resolves to a Set of unique `backendNodeId`s corresponding
  *          to scrollable elements in the DOM.
  */
 export async function findScrollableElementIds(
-  simplePageBase: SimplePageBase,
+  simplePageBase: SimplePage,
   targetFrame?: Frame,
 ): Promise<Set<number>> {
   // JS runs inside the right browsing context
@@ -1125,12 +1125,12 @@ export async function findScrollableElementIds(
 /**
  * Resolve an XPath to a Chrome-DevTools-Protocol (CDP) remote-object ID.
  *
- * @param page     A SimplePageBase (or Playwright.Page with .sendCDP)
+ * @param page     A SimplePage (or Playwright.Page with .sendCDP)
  * @param xpath    An absolute or relative XPath
  * @returns        The remote objectId for the matched node, or null
  */
 export async function resolveObjectIdForXPath(
-  page: SimplePageBase,
+  page: SimplePage,
   xpath: string,
   targetFrame?: Frame,
 ): Promise<string | null> {
@@ -1167,7 +1167,7 @@ export async function resolveObjectIdForXPath(
  * an isolated world in that frame.
  */
 async function getFrameExecutionContextId(
-  simplePageBase: SimplePageBase,
+  simplePageBase: SimplePage,
   frame: Frame,
 ): Promise<number | undefined> {
   if (!frame || frame === simplePageBase.page.mainFrame()) {
@@ -1281,7 +1281,7 @@ function extractUrlFromAXNode(axNode: AccessibilityNode): string | undefined {
  * descending into each matching iframe element to build a frame chain, and returns the leftover
  * XPath segment to evaluate within the context of the last iframe.
  *
- * @param sp - The SimplePageBase instance for evaluating XPath and locating frames.
+ * @param sp - The SimplePage instance for evaluating XPath and locating frames.
  * @param absPath - An absolute XPath expression starting with '/', potentially including iframe steps.
  * @returns An object containing:
  *   frames: Array of Frame objects representing each iframe in the chain.
@@ -1289,7 +1289,7 @@ function extractUrlFromAXNode(axNode: AccessibilityNode): string | undefined {
  * @throws Error if an iframe cannot be found or the final XPath cannot be resolved.
  */
 export async function resolveFrameChain(
-  sp: SimplePageBase,
+  sp: SimplePage,
   absPath: string, // must start with '/'
 ): Promise<{ frames: Frame[]; rest: string }> {
   let path = absPath.startsWith("/") ? absPath : "/" + absPath;
