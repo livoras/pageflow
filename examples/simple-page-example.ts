@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { SimplePage } from '../lib/SimplePage';
+import { SimplePage } from '../src/SimplePage';
 
 async function example() {
   const browser = await chromium.launch({ headless: false });

@@ -1,6 +1,6 @@
 import type { CDPSession, Page as PlaywrightPage, Frame } from "playwright";
 import { selectors } from "playwright";
-import { scriptContent } from "./dom/build/scriptContent";
+import { scriptContent } from "./scriptContent";
 import type { Protocol } from "devtools-protocol";
 
 async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
@@ -238,7 +238,7 @@ ${scriptContent} \
 
   // 直接获取页面的 Accessibility Tree（无需 AI）
   public async getPageStructure(selector?: string) {
-    const { getAccessibilityTree } = require("./a11y/utils");
+    const { getAccessibilityTree } = require("./utils");
     
     const result = await getAccessibilityTree(
       false, // experimental

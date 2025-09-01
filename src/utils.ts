@@ -12,16 +12,16 @@ import {
   RichNode,
   ID_PATTERN,
   CdpFrame,
-} from "../../types/context";
-import { SimplePage } from "../SimplePage";
-import { LogLine } from "../../types/log";
+} from "../types/context";
+import { SimplePage } from "./SimplePage";
+import { LogLine } from "../types/log";
 import {
   ContentFrameNotFoundError,
   SimplePageDomProcessError,
   SimplePageElementNotFoundError,
   SimplePageIframeError,
   XPathResolutionError,
-} from "../../types/simplePageErrors";
+} from "../types/simplePageErrors";
 import { CDPSession, Frame } from "playwright";
 
 const IFRAME_STEP_RE = /iframe\[\d+]$/i;

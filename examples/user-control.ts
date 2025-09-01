@@ -3,7 +3,7 @@
  */
 
 import { chromium } from 'playwright';
-import { SimplePage } from '../lib/SimplePage';
+import { SimplePage } from '../src/SimplePage';
 import fs from "fs";
 import path from "path";
 
