@@ -21,7 +21,7 @@ import {
   StagehandElementNotFoundError,
   StagehandIframeError,
   XPathResolutionError,
-} from "@/types/stagehandErrors";
+} from "../../types/stagehandErrors";
 import { CDPSession, Frame } from "playwright";
 
 const IFRAME_STEP_RE = /iframe\[\d+]$/i;

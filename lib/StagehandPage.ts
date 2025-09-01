@@ -10,7 +10,7 @@ import {
   StagehandNotInitializedError,
   StagehandDefaultError,
 } from "../types/stagehandErrors";
-import { scriptContent } from "@/lib/dom/build/scriptContent";
+import { scriptContent } from "./dom/build/scriptContent";
 import type { Protocol } from "devtools-protocol";
 
 async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
@@ -421,18 +421,8 @@ ${scriptContent} \
     };
   }
 
-  // 新增：直接通过 EncodedId 操作元素
-  public async actByEncodedId(encodedId: string, method: string, args: string[] = []): Promise<void> {
-    const xpathMap = (global as any).__stagehand_xpath_map;
-    if (!xpathMap) {
-      throw new Error("XPath map not available. Run getPageStructure first.");
-    }
-    
-    const xpath = xpathMap[encodedId];
-    if (!xpath) {
-      throw new Error(`No XPath found for EncodedId: ${encodedId}`);
-    }
-    
+  // 新增：直接通过 XPath 操作元素
+  public async actByXPath(xpath: string, method: string, args: string[] = []): Promise<void> {
     // 使用 evaluate 直接操作 DOM，避免 Playwright 的 __name 错误
     if (method === 'fill' && args[0]) {
       await this.page.evaluate(({ xpath, value }) => {
@@ -448,8 +438,12 @@ ${scriptContent} \
       await this.page.evaluate(({ xpath }) => {
         const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         const element = result.singleNodeValue as HTMLElement;
-        if (element) {
+        if (element && typeof element.click === 'function') {
           element.click();
+        } else if (element) {
+          // Fallback for elements that don't have a click method
+          const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+          element.dispatchEvent(event);
         }
       }, { xpath });
     } else if (method === 'select' && args[0]) {
@@ -482,6 +476,21 @@ ${scriptContent} \
     } else {
       throw new Error(`Unsupported method: ${method}`);
     }
+  }
+
+  // 通过 EncodedId 操作元素（内部调用 actByXPath）
+  public async actByEncodedId(encodedId: string, method: string, args: string[] = []): Promise<void> {
+    const xpathMap = (global as any).__stagehand_xpath_map;
+    if (!xpathMap) {
+      throw new Error("XPath map not available. Run getPageStructure first.");
+    }
+    
+    const xpath = xpathMap[encodedId];
+    if (!xpath) {
+      throw new Error(`No XPath found for EncodedId: ${encodedId}`);
+    }
+    
+    return this.actByXPath(xpath, method, args);
   }
 
   /**
