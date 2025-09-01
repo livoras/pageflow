@@ -1,5 +1,5 @@
 /**
- * 演示如何使用独立的 SimplePage 类（不依赖 Stagehand）
+ * 演示如何使用独立的 SimplePage 类
  */
 
 import { chromium } from 'playwright';
@@ -100,7 +100,7 @@ async function demonstrateUserControl() {
   console.log("\n演示完成！");
   
   console.log("\n=== 总结 ===");
-  console.log("1. 使用独立的 SimplePage 类（不依赖 Stagehand）");
+  console.log("1. 使用独立的 SimplePage 类");
   console.log("2. 只需要 Playwright page 即可创建实例");
   console.log("3. 使用 getPageStructure() 获取页面的 A11y Tree");
   console.log("4. 使用 actByEncodedId() 执行操作");
