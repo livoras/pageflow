@@ -74,29 +74,29 @@ export class SimplePage {
     this.fidOrdinals = new Map([[undefined, 0]]);
   }
 
-  private async ensureStagehandScript(): Promise<void> {
+  private async ensureSimplePageScript(): Promise<void> {
     try {
       const injected = await this.page.evaluate(
-        () => !!window.__stagehandInjected,
+        () => !!window.__simplePageInjected,
       );
 
       if (injected) return;
 
-      const guardedScript = `if (!window.__stagehandInjected) { \
-window.__stagehandInjected = true; \
+      const guardedScript = `if (!window.__simplePageInjected) { \
+window.__simplePageInjected = true; \
 ${scriptContent} \
 }`;
 
       await this.page.addInitScript({ content: guardedScript });
       await this.page.evaluate(guardedScript);
     } catch (err) {
-      console.error("Failed to inject Stagehand helper script", err);
+      console.error("Failed to inject SimplePage helper script", err);
       throw err;
     }
   }
 
   /** Register the custom selector engine that pierces open/closed shadow roots. */
-  private async ensureStagehandSelectorEngine(): Promise<void> {
+  private async ensureSimplePageSelectorEngine(): Promise<void> {
     const registerFn = () => {
       type Backdoor = {
         getClosedRoot?: (host: Element) => ShadowRoot | undefined;
@@ -104,12 +104,12 @@ ${scriptContent} \
 
       function parseSelector(input: string): { name: string; value: string } {
         // Accept either:  "abc123"  → uses DEFAULT_ATTR
-        // or explicitly:  "data-__stagehand-id=abc123"
+        // or explicitly:  "data-__simplepage-id=abc123"
         const raw = input.trim();
         const eq = raw.indexOf("=");
         if (eq === -1) {
           return {
-            name: "data-__stagehand-id",
+            name: "data-__simplepage-id",
             value: raw.replace(/^["']|["']$/g, ""),
           };
         }
@@ -151,7 +151,7 @@ ${scriptContent} \
       function* traverseAllTrees(
         start: Node,
       ): Generator<Element, void, unknown> {
-        const backdoor = window.__stagehand__ as Backdoor | undefined;
+        const backdoor = window.__simplepage__ as Backdoor | undefined;
         const stack: Node[] = [];
 
         if (start.nodeType === Node.DOCUMENT_NODE) {
@@ -199,7 +199,7 @@ ${scriptContent} \
     };
 
     try {
-      await selectors.register("stagehand", registerFn);
+      await selectors.register("simplepage", registerFn);
     } catch (err) {
       if (
         err instanceof Error &&
@@ -224,8 +224,8 @@ ${scriptContent} \
       this.updateRootFrameId(rootId);
 
       // Ensure selector engine and scripts are ready
-      await this.ensureStagehandSelectorEngine();
-      await this.ensureStagehandScript();
+      await this.ensureSimplePageSelectorEngine();
+      await this.ensureSimplePageScript();
 
       this.initialized = true;
       return this;
@@ -249,8 +249,8 @@ ${scriptContent} \
     );
     
     // 保存 xpathMap 供后续操作使用
-    (global as any).__stagehand_xpath_map = result.xpathMap;
-    (global as any).__stagehand_current_page = this;
+    (global as any).__simplepage_xpath_map = result.xpathMap;
+    (global as any).__simplepage_current_page = this;
     
     return {
       simplified: result.simplified,
@@ -319,7 +319,7 @@ ${scriptContent} \
 
   // 通过 EncodedId 操作元素（内部调用 actByXPath）
   public async actByEncodedId(encodedId: string, method: string, args: string[] = []): Promise<void> {
-    const xpathMap = (global as any).__stagehand_xpath_map;
+    const xpathMap = (global as any).__simplepage_xpath_map;
     if (!xpathMap) {
       throw new Error("XPath map not available. Run getPageStructure first.");
     }
@@ -357,12 +357,12 @@ ${scriptContent} \
    *   6.  When `inflight` becomes empty the helper starts a 500 ms timer.
    *       If no new request appears before the timer fires, the promise
    *       resolves → **DOM is considered settled**.
-   *   7.  A global guard (`timeoutMs` or `stagehand.domSettleTimeoutMs`,
+   *   7.  A global guard (`timeoutMs` or `simplepage.domSettleTimeoutMs`,
    *       default ≈ 30 s) ensures we always resolve; if it fires we log how many
    *       requests were still outstanding.
    *
    * @param timeoutMs – Optional hard cap (ms).  Defaults to
-   *                    `this.stagehand.domSettleTimeoutMs`.
+   *                    `this.simplepage.domSettleTimeoutMs`.
    */
   public async _waitForSettledDom(timeoutMs?: number): Promise<void> {
     const timeout = timeoutMs ?? 30000;  // Default 30 seconds

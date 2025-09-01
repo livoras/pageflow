@@ -13,15 +13,15 @@ import {
   ID_PATTERN,
   CdpFrame,
 } from "../../types/context";
-import { StagehandPage } from "../StagehandPage";
+import { SimplePageBase } from "../SimplePageBase";
 import { LogLine } from "../../types/log";
 import {
   ContentFrameNotFoundError,
-  StagehandDomProcessError,
-  StagehandElementNotFoundError,
-  StagehandIframeError,
+  SimplePageDomProcessError,
+  SimplePageElementNotFoundError,
+  SimplePageIframeError,
   XPathResolutionError,
-} from "../../types/stagehandErrors";
+} from "../../types/simplePageErrors";
 import { CDPSession, Frame } from "playwright";
 
 const IFRAME_STEP_RE = /iframe\[\d+]$/i;
@@ -30,7 +30,7 @@ const PUA_END = 0xf8ff;
 
 const NBSP_CHARS = new Set<number>([0x00a0, 0x202f, 0x2007, 0xfeff]);
 
-const WORLD_NAME = "stagehand-world";
+const WORLD_NAME = "simplepage-world";
 
 /**
  * Clean a string by removing private-use unicode characters, normalizing whitespace,
@@ -121,13 +121,13 @@ const lc = (raw: string): string => {
  * Build mappings from CDP backendNodeIds to HTML tag names and relative XPaths.
  *
  * @param experimental - Whether to use experimental behaviour.
- * @param sp - The StagehandPage wrapper for Playwright and CDP calls.
+ * @param sp - The SimplePageBase wrapper for Playwright and CDP calls.
  * @param targetFrame - Optional Playwright.Frame whose DOM subtree to map; defaults to main frame.
  * @returns A Promise resolving to BackendIdMaps containing tagNameMap and xpathMap.
  */
 export async function buildBackendIdMaps(
   experimental: boolean,
-  sp: StagehandPage,
+  sp: SimplePageBase,
   targetFrame?: Frame,
 ): Promise<BackendIdMaps> {
   // 0. choose CDP session
@@ -462,12 +462,12 @@ export async function buildHierarchicalTree(
 /**
  * Resolve the CDP frame identifier for a Playwright Frame, handling same-process and OOPIF.
  *
- * @param sp - The StagehandPage instance for issuing CDP commands.
+ * @param sp - The SimplePageBase instance for issuing CDP commands.
  * @param frame - The target Playwright.Frame; undefined or main frame yields undefined.
  * @returns A Promise resolving to the CDP frameId string, or undefined for main document.
  */
 export async function getCDPFrameId(
-  sp: StagehandPage,
+  sp: SimplePageBase,
   frame?: Frame,
 ): Promise<string | undefined> {
   if (!frame || frame === sp.page.mainFrame()) return undefined;
@@ -504,7 +504,7 @@ export async function getCDPFrameId(
 
     return frameTree.frame.id; // root of OOPIF
   } catch (err) {
-    throw new StagehandIframeError(targetUrl, String(err));
+    throw new SimplePageIframeError(targetUrl, String(err));
   }
 }
 
@@ -512,7 +512,7 @@ export async function getCDPFrameId(
  * Retrieve and build a cleaned accessibility tree for a document or specific iframe.
  * Prunes, formats, and optionally filters by XPath, including scrollable role decoration.
  *
- * @param stagehandPage - The StagehandPage instance for Playwright and CDP interaction.
+ * @param simplePageBase - The SimplePageBase instance for Playwright and CDP interaction.
  * @param logger - Logging function for diagnostics and performance metrics.
  * @param selector - Optional XPath to filter the AX tree to a specific subtree.
  * @param targetFrame - Optional Playwright.Frame to scope the AX tree retrieval.
@@ -520,7 +520,7 @@ export async function getCDPFrameId(
  */
 export async function getAccessibilityTree(
   experimental: boolean,
-  stagehandPage: StagehandPage,
+  simplePageBase: SimplePageBase,
   logger: (log: LogLine) => void,
   selector?: string,
   targetFrame?: Frame,
@@ -528,29 +528,29 @@ export async function getAccessibilityTree(
   // 0. DOM helpers (maps, xpath)
   const { tagNameMap, xpathMap } = await buildBackendIdMaps(
     experimental,
-    stagehandPage,
+    simplePageBase,
     targetFrame,
   );
 
-  await stagehandPage.enableCDP("Accessibility", targetFrame);
+  await simplePageBase.enableCDP("Accessibility", targetFrame);
 
   try {
     // 1. Decide params + session for the CDP call
     let params: Record<string, unknown> = {};
     let sessionFrame: Frame | undefined = targetFrame; // default: talk to that frame
 
-    if (targetFrame && targetFrame !== stagehandPage.page.mainFrame()) {
+    if (targetFrame && targetFrame !== simplePageBase.page.mainFrame()) {
       // try opening a CDP session: succeeds only for OOPIFs
       let isOopif = true;
       try {
-        await stagehandPage.context.newCDPSession(targetFrame);
+        await simplePageBase.context.newCDPSession(targetFrame);
       } catch {
         isOopif = false;
       }
 
       if (!isOopif) {
         // same-proc → use *page* session + { frameId }
-        const frameId = await getCDPFrameId(stagehandPage, targetFrame);
+        const frameId = await getCDPFrameId(simplePageBase, targetFrame);
         logger({
           message: `same-proc iframe: frameId=${frameId}. Using existing CDP session.`,
           level: 1,
@@ -565,13 +565,13 @@ export async function getAccessibilityTree(
     }
 
     // 2. Fetch raw AX nodes
-    const { nodes: fullNodes } = await stagehandPage.sendCDP<{
+    const { nodes: fullNodes } = await simplePageBase.sendCDP<{
       nodes: AXNode[];
     }>("Accessibility.getFullAXTree", params, sessionFrame);
 
     // 3. Scrollable detection
     const scrollableIds = await findScrollableElementIds(
-      stagehandPage,
+      simplePageBase,
       targetFrame,
     );
 
@@ -579,7 +579,7 @@ export async function getAccessibilityTree(
     let nodes = fullNodes;
     if (selector) {
       nodes = await filterAXTreeByXPath(
-        stagehandPage,
+        simplePageBase,
         fullNodes,
         selector,
         targetFrame,
@@ -602,7 +602,7 @@ export async function getAccessibilityTree(
     });
     return tree;
   } finally {
-    await stagehandPage.disableCDP("Accessibility", targetFrame);
+    await simplePageBase.disableCDP("Accessibility", targetFrame);
   }
 }
 
@@ -610,14 +610,14 @@ export async function getAccessibilityTree(
  * Filter an accessibility tree to include only the subtree under a specific XPath root.
  * Resolves the DOM node for the XPath and performs a BFS over the AX node graph.
  *
- * @param page - The StagehandPage instance for issuing CDP commands.
+ * @param page - The SimplePageBase instance for issuing CDP commands.
  * @param full - The full list of AXNode entries to filter.
  * @param xpath - The XPath expression locating the subtree root.
  * @param targetFrame - Optional Playwright.Frame context for CDP evaluation.
  * @returns A Promise resolving to an array of AXNode representing the filtered subtree.
  */
 async function filterAXTreeByXPath(
-  page: StagehandPage,
+  page: SimplePageBase,
   full: AXNode[],
   xpath: string,
   targetFrame?: Frame,
@@ -633,7 +633,7 @@ async function filterAXTreeByXPath(
 
   // Throw if unable to get a backendNodeId for the XPath target
   if (!node?.backendNodeId) {
-    throw new StagehandDomProcessError(
+    throw new SimplePageDomProcessError(
       `Unable to resolve backendNodeId for "${xpath}"`,
     );
   }
@@ -701,12 +701,12 @@ function decorateRoles(
 /**
  * Get the backendNodeId of the iframe element that contains a given Playwright.Frame.
  *
- * @param sp - The StagehandPage instance for issuing CDP commands.
+ * @param sp - The SimplePageBase instance for issuing CDP commands.
  * @param frame - The Playwright.Frame whose host iframe element to locate.
  * @returns A Promise resolving to the backendNodeId of the iframe element, or null if not applicable.
  */
 export async function getFrameRootBackendNodeId(
-  sp: StagehandPage,
+  sp: SimplePageBase,
   frame: Frame | undefined,
 ): Promise<number | null> {
   // Return null for top-level or undefined frames
@@ -913,19 +913,19 @@ export function injectSubtrees(
  * Retrieve and merge accessibility trees for the main document and nested iframes.
  * Walks through frame chains if a root XPath is provided, then stitches subtree outlines.
  *
- * @param stagehandPage - The StagehandPage instance for Playwright and CDP interaction.
+ * @param simplePageBase - The SimplePageBase instance for Playwright and CDP interaction.
  * @param logger - Logging function for diagnostics and performance.
  * @param rootXPath - Optional absolute XPath to focus the crawl on a subtree across frames.
  * @returns A Promise resolving to CombinedA11yResult with combined tree text, xpath map, and URL map.
  */
 export async function getAccessibilityTreeWithFrames(
   experimental: boolean,
-  stagehandPage: StagehandPage,
+  simplePageBase: SimplePageBase,
   logger: (l: LogLine) => void,
   rootXPath?: string,
 ): Promise<CombinedA11yResult> {
   // 0. main-frame bookkeeping
-  const main = stagehandPage.page.mainFrame();
+  const main = simplePageBase.page.mainFrame();
 
   // 1. “focus XPath” → frame chain + inner XPath
   let targetFrames: Frame[] | undefined; // full chain, main-first
@@ -933,7 +933,7 @@ export async function getAccessibilityTreeWithFrames(
 
   if (rootXPath?.trim()) {
     const { frames, rest } = await resolveFrameChain(
-      stagehandPage,
+      simplePageBase,
       rootXPath.trim(),
     );
     targetFrames = frames.length ? frames : undefined; // empty → undefined
@@ -968,7 +968,7 @@ export async function getAccessibilityTreeWithFrames(
     try {
       const res = await getAccessibilityTree(
         experimental,
-        stagehandPage,
+        simplePageBase,
         logger,
         selector,
         frame,
@@ -978,7 +978,7 @@ export async function getAccessibilityTreeWithFrames(
       const backendId =
         frame === main
           ? null
-          : await getFrameRootBackendNodeId(stagehandPage, frame);
+          : await getFrameRootBackendNodeId(simplePageBase, frame);
 
       let frameXpath;
       if (experimental) {
@@ -989,7 +989,7 @@ export async function getAccessibilityTreeWithFrames(
       }
 
       // Resolve the CDP frameId for this Playwright Frame (undefined for main)
-      const frameId = await getCDPFrameId(stagehandPage, frame);
+      const frameId = await getCDPFrameId(simplePageBase, frame);
 
       snapshots.push({
         frame,
@@ -1059,7 +1059,7 @@ export async function getAccessibilityTreeWithFrames(
     if (backendNodeId !== null && frameId !== undefined)
       // ignore main frame and snapshots without a CDP frameId
       idToTree.set(
-        stagehandPage.encodeWithFrameId(frameId, backendNodeId),
+        simplePageBase.encodeWithFrameId(frameId, backendNodeId),
         tree,
       );
 
@@ -1079,25 +1079,25 @@ export async function getAccessibilityTreeWithFrames(
  * - Calls the browser-side `window.getScrollableElementXpaths()` function,
  *   which returns a list of XPaths for scrollable containers.
  * - Iterates over the returned list of XPaths, locating each element in the DOM
- *   using `stagehandPage.sendCDP(...)`
+ *   using `simplePageBase.sendCDP(...)`
  *     - During each iteration, we call `Runtime.evaluate` to run `document.evaluate(...)`
  *       with each XPath, obtaining a `RemoteObject` reference if it exists.
  *     - Then, for each valid object reference, we call `DOM.describeNode` to retrieve
  *       the element’s `backendNodeId`.
  * - Collects all resulting `backendNodeId`s in a Set and returns them.
  *
- * @param stagehandPage - A StagehandPage instance with built-in CDP helpers.
+ * @param simplePageBase - A SimplePageBase instance with built-in CDP helpers.
  * @returns A Promise that resolves to a Set of unique `backendNodeId`s corresponding
  *          to scrollable elements in the DOM.
  */
 export async function findScrollableElementIds(
-  stagehandPage: StagehandPage,
+  simplePageBase: SimplePageBase,
   targetFrame?: Frame,
 ): Promise<Set<number>> {
   // JS runs inside the right browsing context
   const xpaths: string[] = targetFrame
     ? await targetFrame.evaluate(() => window.getScrollableElementXpaths())
-    : await stagehandPage.page.evaluate(() =>
+    : await simplePageBase.page.evaluate(() =>
         window.getScrollableElementXpaths(),
       );
 
@@ -1107,13 +1107,13 @@ export async function findScrollableElementIds(
     if (!xpath) continue;
 
     const objectId = await resolveObjectIdForXPath(
-      stagehandPage,
+      simplePageBase,
       xpath,
       targetFrame,
     );
 
     if (objectId) {
-      const { node } = await stagehandPage.sendCDP<{
+      const { node } = await simplePageBase.sendCDP<{
         node?: { backendNodeId?: number };
       }>("DOM.describeNode", { objectId }, targetFrame);
       if (node?.backendNodeId) backendIds.add(node.backendNodeId);
@@ -1125,12 +1125,12 @@ export async function findScrollableElementIds(
 /**
  * Resolve an XPath to a Chrome-DevTools-Protocol (CDP) remote-object ID.
  *
- * @param page     A StagehandPage (or Playwright.Page with .sendCDP)
+ * @param page     A SimplePageBase (or Playwright.Page with .sendCDP)
  * @param xpath    An absolute or relative XPath
  * @returns        The remote objectId for the matched node, or null
  */
 export async function resolveObjectIdForXPath(
-  page: StagehandPage,
+  page: SimplePageBase,
   xpath: string,
   targetFrame?: Frame,
 ): Promise<string | null> {
@@ -1158,7 +1158,7 @@ export async function resolveObjectIdForXPath(
     },
     targetFrame,
   );
-  if (!result?.objectId) throw new StagehandElementNotFoundError([xpath]);
+  if (!result?.objectId) throw new SimplePageElementNotFoundError([xpath]);
   return result.objectId;
 }
 
@@ -1167,15 +1167,15 @@ export async function resolveObjectIdForXPath(
  * an isolated world in that frame.
  */
 async function getFrameExecutionContextId(
-  stagehandPage: StagehandPage,
+  simplePageBase: SimplePageBase,
   frame: Frame,
 ): Promise<number | undefined> {
-  if (!frame || frame === stagehandPage.page.mainFrame()) {
+  if (!frame || frame === simplePageBase.page.mainFrame()) {
     // Main frame (or no frame): use the default world.
     return undefined;
   }
-  const frameId: string = await getCDPFrameId(stagehandPage, frame);
-  const { executionContextId } = await stagehandPage.sendCDP<{
+  const frameId: string = await getCDPFrameId(simplePageBase, frame);
+  const { executionContextId } = await simplePageBase.sendCDP<{
     executionContextId: number;
   }>(
     "Page.createIsolatedWorld",
@@ -1281,7 +1281,7 @@ function extractUrlFromAXNode(axNode: AccessibilityNode): string | undefined {
  * descending into each matching iframe element to build a frame chain, and returns the leftover
  * XPath segment to evaluate within the context of the last iframe.
  *
- * @param sp - The StagehandPage instance for evaluating XPath and locating frames.
+ * @param sp - The SimplePageBase instance for evaluating XPath and locating frames.
  * @param absPath - An absolute XPath expression starting with '/', potentially including iframe steps.
  * @returns An object containing:
  *   frames: Array of Frame objects representing each iframe in the chain.
@@ -1289,7 +1289,7 @@ function extractUrlFromAXNode(axNode: AccessibilityNode): string | undefined {
  * @throws Error if an iframe cannot be found or the final XPath cannot be resolved.
  */
 export async function resolveFrameChain(
-  sp: StagehandPage,
+  sp: SimplePageBase,
   absPath: string, // must start with '/'
 ): Promise<{ frames: Frame[]; rest: string }> {
   let path = absPath.startsWith("/") ? absPath : "/" + absPath;

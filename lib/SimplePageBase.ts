@@ -2,14 +2,13 @@ import type { CDPSession, Page as PlaywrightPage, Frame } from "playwright";
 import { selectors } from "playwright";
 import { z } from "zod/v3";
 import { Page } from "../types/page";
-import { GotoOptions, Stagehand } from "./index";
-import { StagehandContext } from "./StagehandContext";
+import { SimplePageContext } from "./SimplePageContext";
 import { EncodedId, EnhancedContext } from "../types/context";
 import {
-  StagehandError,
-  StagehandNotInitializedError,
-  StagehandDefaultError,
-} from "../types/stagehandErrors";
+  SimplePageError,
+  SimplePageNotInitializedError,
+  SimplePageDefaultError,
+} from "../types/simplePageErrors";
 import { scriptContent } from "./dom/build/scriptContent";
 import type { Protocol } from "devtools-protocol";
 
@@ -20,11 +19,10 @@ async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
   return frameTree.frame.id;
 }
 
-export class StagehandPage {
-  private stagehand: Stagehand;
+export class SimplePageBase {
   private rawPage: PlaywrightPage;
   private intPage: Page;
-  private intContext: StagehandContext;
+  private intContext: SimplePageContext;
   private cdpClient: CDPSession | null = null;
   private initialized: boolean = false;
   private readonly cdpClients = new WeakMap<
