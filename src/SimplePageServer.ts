@@ -318,6 +318,23 @@ export class SimplePageServer {
 
       res.json({ xpath });
     });
+
+    // Get actions.json file path
+    this.app.get('/api/pages/:pageId/action-path', (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const pageInfo = this.pages.get(pageId);
+        
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+        
+        const actionsPath = pageInfo.simplePage.getActionsPath();
+        res.json({ actionsPath });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
   }
 
   async start() {

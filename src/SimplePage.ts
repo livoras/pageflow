@@ -382,18 +382,7 @@ ${scriptContent} \
   }
 
   // 直接通过 XPath 操作元素
-  public async actByXPath(xpath: string, method: string, args: string[] = [], description?: string): Promise<void> {
-    // Record action if tracking is enabled (only if called directly, not from actByEncodedId)
-    if (this.pageState && description !== undefined) {
-      await this.recordAction({
-        type: 'act',
-        method,
-        xpath,
-        args,
-        description
-      });
-    }
-    
+  public async actByXPath(xpath: string, method: string, args: string[] = [], description?: string, waitTimeout: number = 3000): Promise<void> {
     // 使用 evaluate 直接操作 DOM，避免 Playwright 的 __name 错误
     if (method === 'fill' && args[0]) {
       await this.page.evaluate(({ xpath, value }) => {
@@ -447,10 +436,24 @@ ${scriptContent} \
     } else {
       throw new Error(`Unsupported method: ${method}`);
     }
+    
+    // Wait for DOM to settle after all actions
+    await this._waitForSettledDom(waitTimeout);
+    
+    // Record action after execution (only if called directly, not from actByEncodedId)
+    if (this.pageState && description !== undefined) {
+      await this.recordAction({
+        type: 'act',
+        method,
+        xpath,
+        args,
+        description
+      });
+    }
   }
 
   // 通过 EncodedId 操作元素（内部调用 actByXPath）
-  public async actByEncodedId(encodedId: string, method: string, args: string[] = [], description?: string): Promise<void> {
+  public async actByEncodedId(encodedId: string, method: string, args: string[] = [], description?: string, waitTimeout: number = 3000): Promise<void> {
     const xpathMap = (global as any).__simplepage_xpath_map;
     if (!xpathMap) {
       throw new Error("XPath map not available. Run getPageStructure first.");
@@ -461,20 +464,8 @@ ${scriptContent} \
       throw new Error(`No XPath found for EncodedId: ${encodedId}`);
     }
     
-    // Record action if tracking is enabled
-    if (this.pageState) {
-      await this.recordAction({
-        type: 'act',
-        method,
-        encodedId,
-        xpath,  // Also include xpath for reference
-        args,
-        description
-      });
-    }
-    
-    // Don't pass description to actByXPath to avoid double recording
-    return this.actByXPath(xpath, method, args);
+    // Just convert and forward to actByXPath
+    return this.actByXPath(xpath, method, args, description, waitTimeout);
   }
 
   // Navigate to a URL
@@ -524,6 +515,11 @@ ${scriptContent} \
     }
     
     return matched;
+  }
+
+  // Get actions.json file path
+  public getActionsPath(): string | null {
+    return this.pageDir ? path.join(this.pageDir, 'actions.json') : null;
   }
 
   /**
