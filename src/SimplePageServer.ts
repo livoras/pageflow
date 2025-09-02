@@ -67,6 +67,10 @@ export class SimplePageServer {
           return res.status(400).json({ error: 'Page name is required' });
         }
 
+        if (description) {
+          console.log(`[CreatePage] ${description}`);
+        }
+
         const pageId = await this.createPage(name, description, url);
         const pageInfo = this.pages.get(pageId)!;
         
@@ -147,10 +151,14 @@ export class SimplePageServer {
     this.app.post('/api/pages/:pageId/act-xpath', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { xpath, method, args = [] } = req.body;
+        const { xpath, method, args = [], description } = req.body;
         
         if (!xpath || !method) {
           return res.status(400).json({ error: 'xpath and method are required' });
+        }
+
+        if (description) {
+          console.log(`[ActByXPath] ${description}`);
         }
 
         const pageInfo = this.pages.get(pageId);
@@ -158,7 +166,7 @@ export class SimplePageServer {
           return res.status(404).json({ error: 'Page not found' });
         }
 
-        await pageInfo.simplePage.actByXPath(xpath, method, args);
+        await pageInfo.simplePage.actByXPath(xpath, method, args, description);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -169,10 +177,14 @@ export class SimplePageServer {
     this.app.post('/api/pages/:pageId/act-id', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { encodedId, method, args = [] } = req.body;
+        const { encodedId, method, args = [], description } = req.body;
         
         if (!encodedId || !method) {
           return res.status(400).json({ error: 'encodedId and method are required' });
+        }
+
+        if (description) {
+          console.log(`[ActByEncodedId] ${description}`);
         }
 
         const pageInfo = this.pages.get(pageId);
@@ -180,7 +192,7 @@ export class SimplePageServer {
           return res.status(404).json({ error: 'Page not found' });
         }
 
-        await pageInfo.simplePage.actByEncodedId(encodedId, method, args);
+        await pageInfo.simplePage.actByEncodedId(encodedId, method, args, description);
         res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -302,7 +314,7 @@ export class SimplePageServer {
 
     const id = uuid();
     const page = await this.persistentContext.newPage();
-    const simplePage = new SimplePage(page);
+    const simplePage = new SimplePage(page, id, description);
     await simplePage.init();
 
     if (url) {
@@ -329,6 +341,9 @@ export class SimplePageServer {
       throw new Error('Page not found');
     }
 
+    // Record close action before closing
+    await pageInfo.simplePage.recordClose();
+    
     await pageInfo.page.close();
     this.pages.delete(pageId);
   }

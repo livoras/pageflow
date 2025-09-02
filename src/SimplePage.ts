@@ -2,12 +2,34 @@ import type { CDPSession, Page as PlaywrightPage, Frame } from "playwright";
 import { selectors } from "playwright";
 import { scriptContent } from "./scriptContent";
 import type { Protocol } from "devtools-protocol";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 
 async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
   const { frameTree } = (await session.send(
     "Page.getFrameTree",
   )) as Protocol.Page.GetFrameTreeResponse;
   return frameTree.frame.id;
+}
+
+interface Action {
+  type: 'create' | 'act' | 'close';
+  url?: string;
+  method?: string;
+  xpath?: string;
+  encodedId?: string;
+  args?: string[];
+  description?: string;
+  timestamp: number;
+  structure?: string;
+  xpathMap?: string;
+}
+
+interface PageState {
+  id: string;
+  description?: string;
+  actions: Action[];
 }
 
 export class SimplePage {
@@ -25,6 +47,9 @@ export class SimplePage {
   ]);
 
   private rootFrameId!: string;
+  private pageId: string | null = null;
+  private pageDir: string | null = null;
+  private pageState: PageState | null = null;
 
   public get frameId(): string {
     return this.rootFrameId;
@@ -34,7 +59,7 @@ export class SimplePage {
     this.rootFrameId = newId;
   }
 
-  constructor(page: PlaywrightPage) {
+  constructor(page: PlaywrightPage, id?: string, description?: string) {
     this.page = page;
     this.logger = (info: any) => {
       if (info.level === 1) {
@@ -45,6 +70,93 @@ export class SimplePage {
         console.log(info.message || '');
       }
     };
+    
+    if (id) {
+      this.initializePageState(id, description);
+    }
+  }
+
+  private initializePageState(id: string, description?: string) {
+    this.pageId = id;
+    this.pageDir = path.join(os.tmpdir(), 'simplepage', id);
+    const dataDir = path.join(this.pageDir, 'data');
+    
+    // Create directories
+    if (!fs.existsSync(this.pageDir)) {
+      fs.mkdirSync(this.pageDir, { recursive: true });
+    }
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    
+    // Initialize or load page state
+    const actionsFile = path.join(this.pageDir, 'actions.json');
+    if (fs.existsSync(actionsFile)) {
+      this.pageState = JSON.parse(fs.readFileSync(actionsFile, 'utf-8'));
+    } else {
+      this.pageState = {
+        id,
+        description,
+        actions: []
+      };
+      this.savePageState();
+    }
+  }
+
+  private savePageState() {
+    if (!this.pageState || !this.pageDir) return;
+    const actionsFile = path.join(this.pageDir, 'actions.json');
+    fs.writeFileSync(actionsFile, JSON.stringify(this.pageState, null, 2));
+  }
+
+  private async saveSnapshot(action: Action) {
+    if (!this.pageDir) return;
+    
+    const timestamp = Date.now();
+    const dataDir = path.join(this.pageDir, 'data');
+    
+    // Get page structure
+    const structure = await this.getPageStructure();
+    
+    // Save structure file
+    const structureFile = `${timestamp}-structure.txt`;
+    const structurePath = path.join(dataDir, structureFile);
+    fs.writeFileSync(structurePath, structure.simplified);
+    action.structure = structureFile;
+    
+    // Save xpathMap file
+    const xpathFile = `${timestamp}-xpath.json`;
+    const xpathPath = path.join(dataDir, xpathFile);
+    fs.writeFileSync(xpathPath, JSON.stringify(structure.xpathMap, null, 2));
+    action.xpathMap = xpathFile;
+  }
+
+  private async recordAction(action: Omit<Action, 'timestamp'>) {
+    if (!this.pageState) return;
+    
+    const fullAction: Action = {
+      ...action,
+      timestamp: Date.now()
+    };
+    
+    // Save snapshot for this action (except for close)
+    if (action.type !== 'close') {
+      await this.saveSnapshot(fullAction);
+    }
+    
+    // Add to actions array
+    this.pageState.actions.push(fullAction);
+    
+    // Save updated state
+    this.savePageState();
+  }
+
+  public async recordClose() {
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'close'
+      });
+    }
   }
 
   // For compatibility with getAccessibilityTree
@@ -223,11 +335,20 @@ ${scriptContent} \
       const rootId = await getCurrentRootFrameId(session);
       this.updateRootFrameId(rootId);
 
-      // Ensure selector engine and scripts are ready
+      // Ensure selector engine and scripts are ready BEFORE recording
       await this.ensureSimplePageSelectorEngine();
       await this.ensureSimplePageScript();
 
       this.initialized = true;
+
+      // Record page creation if tracking is enabled (AFTER scripts are ready)
+      if (this.pageState) {
+        await this.recordAction({
+          type: 'create',
+          url: this.page.url(),
+          description: this.pageState.description
+        });
+      }
       return this;
     } catch (err: unknown) {
       console.error("Failed to initialize SimplePage", err);
@@ -261,7 +382,18 @@ ${scriptContent} \
   }
 
   // 直接通过 XPath 操作元素
-  public async actByXPath(xpath: string, method: string, args: string[] = []): Promise<void> {
+  public async actByXPath(xpath: string, method: string, args: string[] = [], description?: string): Promise<void> {
+    // Record action if tracking is enabled (only if called directly, not from actByEncodedId)
+    if (this.pageState && description !== undefined) {
+      await this.recordAction({
+        type: 'act',
+        method,
+        xpath,
+        args,
+        description
+      });
+    }
+    
     // 使用 evaluate 直接操作 DOM，避免 Playwright 的 __name 错误
     if (method === 'fill' && args[0]) {
       await this.page.evaluate(({ xpath, value }) => {
@@ -318,7 +450,7 @@ ${scriptContent} \
   }
 
   // 通过 EncodedId 操作元素（内部调用 actByXPath）
-  public async actByEncodedId(encodedId: string, method: string, args: string[] = []): Promise<void> {
+  public async actByEncodedId(encodedId: string, method: string, args: string[] = [], description?: string): Promise<void> {
     const xpathMap = (global as any).__simplepage_xpath_map;
     if (!xpathMap) {
       throw new Error("XPath map not available. Run getPageStructure first.");
@@ -329,6 +461,19 @@ ${scriptContent} \
       throw new Error(`No XPath found for EncodedId: ${encodedId}`);
     }
     
+    // Record action if tracking is enabled
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'act',
+        method,
+        encodedId,
+        xpath,  // Also include xpath for reference
+        args,
+        description
+      });
+    }
+    
+    // Don't pass description to actByXPath to avoid double recording
     return this.actByXPath(xpath, method, args);
   }
 
