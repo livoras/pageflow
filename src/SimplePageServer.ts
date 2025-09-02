@@ -67,6 +67,10 @@ export class SimplePageServer {
           return res.status(400).json({ error: 'Page name is required' });
         }
 
+        if (!url) {
+          return res.status(400).json({ error: 'URL is required' });
+        }
+
         if (description) {
           console.log(`[CreatePage] ${description}`);
         }
@@ -336,7 +340,7 @@ export class SimplePageServer {
     );
   }
 
-  private async createPage(name: string, description?: string, url?: string, timeout: number = 3000): Promise<string> {
+  private async createPage(name: string, description?: string, url: string, timeout: number = 3000): Promise<string> {
     if (!this.persistentContext) {
       throw new Error('Browser not initialized');
     }
@@ -346,9 +350,7 @@ export class SimplePageServer {
     const simplePage = new SimplePage(page, id, description);
     await simplePage.init();
 
-    if (url) {
-      await page.goto(url, { timeout });
-    }
+    await page.goto(url, { timeout });
 
     const pageInfo: PageInfo = {
       id,
