@@ -36,7 +36,11 @@
   "author": "Browserbase",
   "license": "MIT",
   "devDependencies": {
+    "@types/express": "^5.0.3",
     "@types/node": "^20.11.30",
+    "@types/node-fetch": "^2.6.13",
+    "@types/uuid": "^10.0.0",
+    "node-fetch": "^3.3.2",
     "tsx": "^4.10.5",
     "typescript": "^5.2.2"
   },
@@ -45,7 +49,9 @@
   },
   "dependencies": {
     "devtools-protocol": "^0.0.1464554",
-    "playwright": "^1.52.0"
+    "express": "^5.1.0",
+    "playwright": "^1.52.0",
+    "uuid": "^11.1.0"
   },
   "directories": {
     "doc": "docs",
