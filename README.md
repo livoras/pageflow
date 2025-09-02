@@ -8,6 +8,7 @@ A lightweight web automation framework built on Playwright and Accessibility Tre
 - **Structured Page Analysis** - Converts complex DOM into clean, readable tree format
 - **XPath Mapping** - Automatically generates EncodedId to XPath mappings for stable element targeting
 - **Precise Element Operations** - Supports element interaction via EncodedId or XPath
+- **Condition Checking** - Regex-based page state validation against structure
 - **HTTP API Server** - REST API for browser automation with persistent context
 - **Operation Recording** - Complete action history with page snapshots
 - **Zero AI Dependencies** - Runs entirely locally without any LLM or AI services
@@ -47,6 +48,10 @@ await sp.actByEncodedId('0-123', 'click');
 
 // Wait for timeout
 await sp.waitForTimeout(2000);
+
+// Check condition
+const hasLoginButton = await sp.checkCondition(/登录|login/i);
+const isErrorPage = await sp.checkCondition('错误|异常|error');
 ```
 
 ### HTTP Server Mode
@@ -82,6 +87,11 @@ curl -X POST http://localhost:3100/api/pages/{pageId}/act-id \
 curl -X POST http://localhost:3100/api/pages/{pageId}/wait \
   -H "Content-Type: application/json" \
   -d '{"timeout": 2000}'
+
+# Check condition
+curl -X POST http://localhost:3100/api/pages/{pageId}/condition \
+  -H "Content-Type: application/json" \
+  -d '{"pattern": "登录.*成功", "description": "Check login success"}'
 
 # Close page
 curl -X DELETE http://localhost:3100/api/pages/{pageId}
@@ -148,6 +158,28 @@ Directly operates on elements using XPath selectors for more stable automation.
 - `xpath`: XPath selector string
 - `method`: Playwright action method
 - `args`: Optional arguments for the method
+
+#### `checkCondition(pattern: RegExp | string, description?: string)`
+
+Checks if the page structure matches a regex pattern.
+
+**Parameters:**
+- `pattern`: Regular expression or string pattern to match
+- `description`: Optional description for logging
+
+**Returns:** `Promise<boolean>` - true if pattern matches, false otherwise
+
+**Examples:**
+```typescript
+// Check for specific text
+const hasError = await sp.checkCondition(/error|failed/i);
+
+// Check for element types
+const hasTextbox = await sp.checkCondition('textbox.*search');
+
+// Check for specific structure patterns
+const isLoggedIn = await sp.checkCondition(/user.*logout|profile/i);
+```
 
 ### HTTP API Endpoints
 
@@ -222,6 +254,25 @@ Acts on element by XPath.
 }
 ```
 
+#### POST `/api/pages/:pageId/condition`
+Checks if page structure matches a pattern.
+
+**Request Body:**
+```json
+{
+  "pattern": "登录|login",
+  "flags": "i",                    // Optional regex flags
+  "description": "Check for login" // Optional
+}
+```
+
+**Response:**
+```json
+{
+  "matched": true
+}
+```
+
 #### GET `/api/pages/:pageId`
 Returns page information.
 
@@ -243,10 +294,11 @@ await sp.init();
 ```
 
 Each action records:
-- Operation type (create, navigate, wait, act, close)
+- Operation type (create, navigate, wait, act, condition, close)
 - Timestamp
 - Page structure snapshot
 - XPath mappings
+- For condition checks: pattern, flags, and match result
 
 ## Example Scripts
 

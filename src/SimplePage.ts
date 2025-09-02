@@ -506,6 +506,26 @@ ${scriptContent} \
     }
   }
 
+  // Check condition against page structure using regex
+  public async checkCondition(pattern: RegExp | string, description?: string): Promise<boolean> {
+    const structure = await this.getPageStructure();
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    const matched = regex.test(structure.simplified);
+    
+    // Record condition check if tracking is enabled
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'condition',
+        pattern: regex.source,
+        flags: regex.flags,
+        matched,
+        description: description || `Check condition: ${regex.source}`
+      });
+    }
+    
+    return matched;
+  }
+
   /**
    * `_waitForSettledDom` waits until the DOM is settled, and therefore is
    * ready for actions to be taken.

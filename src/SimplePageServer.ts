@@ -232,6 +232,35 @@ export class SimplePageServer {
       }
     });
 
+    // Check condition
+    this.app.post('/api/pages/:pageId/condition', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { pattern, flags, description } = req.body;
+        
+        if (!pattern) {
+          return res.status(400).json({ error: 'Pattern is required' });
+        }
+
+        if (description) {
+          console.log(`[Condition] ${description}`);
+        }
+
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        // Create regex from pattern and optional flags
+        const regexPattern = flags ? new RegExp(pattern, flags) : new RegExp(pattern);
+        const matched = await pageInfo.simplePage.checkCondition(regexPattern, description);
+        
+        res.json({ matched });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Take screenshot
     this.app.get('/api/pages/:pageId/screenshot', async (req: Request, res: Response) => {
       try {
