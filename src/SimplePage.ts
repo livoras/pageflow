@@ -361,6 +361,36 @@ ${scriptContent} \
   public async getPageStructure(selector?: string) {
     const { getAccessibilityTree } = require("./utils");
     
+    // 保存原始 HTML 用于调试
+    let htmlPath: string | undefined;
+    let axTreePath: string | undefined;
+    
+    if (this.pageState && this.pageDir) {
+      const timestamp = Date.now();
+      const dataDir = path.join(this.pageDir, 'data');
+      
+      // 保存原始 HTML
+      try {
+        const html = await this.page.content();
+        htmlPath = path.join(dataDir, `${timestamp}-page.html`);
+        fs.writeFileSync(htmlPath, html);
+        console.log(`[DEBUG] Saved HTML to: ${htmlPath}`);
+      } catch (e) {
+        console.error('[DEBUG] Failed to save HTML:', e);
+      }
+      
+      // 获取并保存原始 Accessibility Tree
+      try {
+        const client = await this.getCDPClient();
+        const axTree = await client.send("Accessibility.getFullAXTree", { depth: -1 });
+        axTreePath = path.join(dataDir, `${timestamp}-axtree.json`);
+        fs.writeFileSync(axTreePath, JSON.stringify(axTree, null, 2));
+        console.log(`[DEBUG] Saved AX Tree to: ${axTreePath}`);
+      } catch (e) {
+        console.error('[DEBUG] Failed to save AX Tree:', e);
+      }
+    }
+    
     const result = await getAccessibilityTree(
       false, // experimental
       this,
@@ -377,7 +407,9 @@ ${scriptContent} \
       simplified: result.simplified,
       xpathMap: result.xpathMap,
       idToUrl: result.idToUrl,
-      tree: result.tree
+      tree: result.tree,
+      htmlPath,
+      axTreePath
     };
   }
 
