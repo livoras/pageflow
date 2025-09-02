@@ -61,7 +61,7 @@ export class SimplePageServer {
     // Create new page
     this.app.post('/api/pages', async (req: Request, res: Response) => {
       try {
-        const { name, description, url } = req.body;
+        const { name, description, url, timeout = 3000 } = req.body;
         
         if (!name) {
           return res.status(400).json({ error: 'Page name is required' });
@@ -71,7 +71,7 @@ export class SimplePageServer {
           console.log(`[CreatePage] ${description}`);
         }
 
-        const pageId = await this.createPage(name, description, url);
+        const pageId = await this.createPage(name, description, url, timeout);
         const pageInfo = this.pages.get(pageId)!;
         
         res.json({
@@ -101,7 +101,7 @@ export class SimplePageServer {
     this.app.post('/api/pages/:pageId/navigate', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { url } = req.body;
+        const { url, timeout = 3000 } = req.body;
         
         if (!url) {
           return res.status(400).json({ error: 'URL is required' });
@@ -112,8 +112,7 @@ export class SimplePageServer {
           return res.status(404).json({ error: 'Page not found' });
         }
 
-        await pageInfo.page.goto(url);
-        await pageInfo.page.waitForLoadState('networkidle');
+        await pageInfo.page.goto(url, { timeout });
         
         res.json({ 
           success: true,
@@ -307,7 +306,7 @@ export class SimplePageServer {
     );
   }
 
-  private async createPage(name: string, description?: string, url?: string): Promise<string> {
+  private async createPage(name: string, description?: string, url?: string, timeout: number = 3000): Promise<string> {
     if (!this.persistentContext) {
       throw new Error('Browser not initialized');
     }
@@ -318,8 +317,7 @@ export class SimplePageServer {
     await simplePage.init();
 
     if (url) {
-      await page.goto(url);
-      await page.waitForLoadState('networkidle');
+      await page.goto(url, { timeout });
     }
 
     const pageInfo: PageInfo = {
