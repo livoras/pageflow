@@ -477,6 +477,35 @@ ${scriptContent} \
     return this.actByXPath(xpath, method, args);
   }
 
+  // Navigate to a URL
+  public async navigate(url: string, timeout: number = 3000, description?: string): Promise<void> {
+    await this.page.goto(url, { timeout });
+    
+    // Record navigation if tracking is enabled
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'navigate',
+        url,
+        timeout,
+        description: description || `Navigate to ${url}`
+      });
+    }
+  }
+
+  // Wait for a timeout
+  public async waitForTimeout(timeout: number, description?: string): Promise<void> {
+    await this.page.waitForTimeout(timeout);
+    
+    // Record wait if tracking is enabled
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'wait',
+        timeout,
+        description: description || `Wait for ${timeout}ms`
+      });
+    }
+  }
+
   /**
    * `_waitForSettledDom` waits until the DOM is settled, and therefore is
    * ready for actions to be taken.
