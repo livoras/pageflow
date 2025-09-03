@@ -44,9 +44,10 @@ lists.forEach((list, i) => {
 
 // Create output directory
 const outputDir = 'similar-sequences';
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir);
+if (fs.existsSync(outputDir)) {
+  fs.rmSync(outputDir, { recursive: true, force: true });
 }
+fs.mkdirSync(outputDir);
 
 // Test with SimHash
 console.log('\n--- Testing SimHash for lists ---');
