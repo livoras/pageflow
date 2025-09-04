@@ -6,6 +6,7 @@ import type { Server } from 'http';
 import * as path from 'path';
 import * as os from 'os';
 import { SimplePage } from './SimplePage';
+import { browserDOMMatcherScript } from './utils/browser-dom-matcher';
 
 interface PageInfo {
   id: string;
@@ -26,7 +27,7 @@ export class SimplePageServer {
   private userDataDir: string;
   private headless: boolean;
 
-  constructor(private port: number = parseInt(process.env.PORT || '3000')) {
+  constructor(private port: number = parseInt(process.env.PORT || '3100')) {
     this.headless = process.env.HEADLESS === 'true';
     this.userDataDir = process.env.USER_DATA_DIR || 
       path.join(os.homedir(), '.simple-page-server', 'user-data');
@@ -321,6 +322,71 @@ export class SimplePageServer {
       }
 
       res.json({ xpath });
+    });
+
+    // Highlight similar sequences
+    this.app.post('/api/pages/:pageId/highlight-sequences', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { threshold = 0.7, rootSelector = 'body', clear = false } = req.body;
+        
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        // Inject the DOM matcher script if needed
+        await pageInfo.page.evaluate(browserDOMMatcherScript);
+        
+        // Execute highlighting
+        const result = await pageInfo.page.evaluate((params) => {
+          const { threshold, rootSelector, clear } = params;
+          
+          // Create or get matcher instance
+          if (!(window as any).domMatcher) {
+            (window as any).domMatcher = new (window as any).BrowserDOMPatternMatcher();
+          }
+          
+          if (clear) {
+            (window as any).domMatcher.clearHighlights();
+            return { cleared: true };
+          }
+          
+          // Find and highlight sequences
+          return (window as any).domMatcher.findAndHighlightLists(rootSelector, threshold);
+        }, { threshold, rootSelector, clear });
+        
+        res.json(result);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get highlighted sequences info
+    this.app.get('/api/pages/:pageId/highlight-sequences', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        const result = await pageInfo.page.evaluate(() => {
+          if (!(window as any).domMatcher) {
+            return { sequences: [], message: 'No highlights active' };
+          }
+          
+          return {
+            sequences: (window as any).domMatcher.sequenceInfo,
+            highlightedCount: (window as any).domMatcher.highlightedElements.size
+          };
+        });
+        
+        res.json(result);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
     });
 
   }
