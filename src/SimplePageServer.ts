@@ -6,7 +6,7 @@ import type { Server } from 'http';
 import * as path from 'path';
 import * as os from 'os';
 import { SimplePage } from './SimplePage';
-import { browserDOMMatcherScript } from './utils/browser-dom-matcher';
+import { browserDOMHighlighterScript } from './utils/browser-dom-highlighter';
 
 interface PageInfo {
   id: string;
@@ -324,37 +324,29 @@ export class SimplePageServer {
       res.json({ xpath });
     });
 
-    // Highlight similar sequences
-    this.app.post('/api/pages/:pageId/highlight-sequences', async (req: Request, res: Response) => {
+    // Highlight single element
+    this.app.post('/api/pages/:pageId/highlight', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { threshold = 0.7, rootSelector = 'body', clear = false } = req.body;
+        const { xpath, color, label } = req.body;
+        
+        if (!xpath) {
+          return res.status(400).json({ error: 'xpath is required' });
+        }
         
         const pageInfo = this.pages.get(pageId);
         if (!pageInfo) {
           return res.status(404).json({ error: 'Page not found' });
         }
 
-        // Inject the DOM matcher script if needed
-        await pageInfo.page.evaluate(browserDOMMatcherScript);
+        // Inject highlighter script if not already injected
+        await pageInfo.page.evaluate(browserDOMHighlighterScript);
         
         // Execute highlighting
-        const result = await pageInfo.page.evaluate((params) => {
-          const { threshold, rootSelector, clear } = params;
-          
-          // Create or get matcher instance
-          if (!(window as any).domMatcher) {
-            (window as any).domMatcher = new (window as any).BrowserDOMPatternMatcher();
-          }
-          
-          if (clear) {
-            (window as any).domMatcher.clearHighlights();
-            return { cleared: true };
-          }
-          
-          // Find and highlight sequences
-          return (window as any).domMatcher.findAndHighlightLists(rootSelector, threshold);
-        }, { threshold, rootSelector, clear });
+        const result = await pageInfo.page.evaluate(({ xpath, color, label }) => {
+          const element = (window as any).highlight(xpath, color, label);
+          return { success: element !== null };
+        }, { xpath, color, label });
         
         res.json(result);
       } catch (error: any) {
@@ -362,8 +354,36 @@ export class SimplePageServer {
       }
     });
 
-    // Get highlighted sequences info
-    this.app.get('/api/pages/:pageId/highlight-sequences', async (req: Request, res: Response) => {
+    // Remove highlight from element
+    this.app.post('/api/pages/:pageId/unhighlight', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { xpath } = req.body;
+        
+        if (!xpath) {
+          return res.status(400).json({ error: 'xpath is required' });
+        }
+        
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        const result = await pageInfo.page.evaluate(({ xpath }) => {
+          if ((window as any).unhighlight) {
+            return { success: (window as any).unhighlight(xpath) };
+          }
+          return { success: false, error: 'Highlighter not initialized' };
+        }, { xpath });
+        
+        res.json(result);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Clear all highlights
+    this.app.post('/api/pages/:pageId/clear-highlights', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
         
@@ -372,18 +392,13 @@ export class SimplePageServer {
           return res.status(404).json({ error: 'Page not found' });
         }
 
-        const result = await pageInfo.page.evaluate(() => {
-          if (!(window as any).domMatcher) {
-            return { sequences: [], message: 'No highlights active' };
+        await pageInfo.page.evaluate(() => {
+          if ((window as any).clearAllHighlights) {
+            (window as any).clearAllHighlights();
           }
-          
-          return {
-            sequences: (window as any).domMatcher.sequenceInfo,
-            highlightedCount: (window as any).domMatcher.highlightedElements.size
-          };
         });
         
-        res.json(result);
+        res.json({ success: true });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
