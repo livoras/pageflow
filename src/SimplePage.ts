@@ -50,6 +50,8 @@ export class SimplePage {
   private pageId: string | null = null;
   private pageDir: string | null = null;
   private pageState: PageState | null = null;
+  private consoleLogPath: string | null = null;
+  private consoleLogStream: fs.WriteStream | null = null;
 
   public get frameId(): string {
     return this.rootFrameId;
@@ -89,6 +91,10 @@ export class SimplePage {
       fs.mkdirSync(dataDir, { recursive: true });
     }
     
+    // Initialize console log path
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    this.consoleLogPath = path.join(dataDir, `console-${timestamp}.log`);
+    
     // Initialize or load page state
     const actionsFile = path.join(this.pageDir, 'actions.json');
     if (fs.existsSync(actionsFile)) {
@@ -101,6 +107,54 @@ export class SimplePage {
       };
       this.savePageState();
     }
+  }
+
+  private setupConsoleLogListener() {
+    if (!this.consoleLogPath) return;
+    
+    // Create write stream for console logs
+    this.consoleLogStream = fs.createWriteStream(this.consoleLogPath, { flags: 'a' });
+    
+    // Listen to console events
+    this.page.on('console', (msg) => {
+      const timestamp = new Date().toISOString();
+      const type = msg.type();
+      const text = msg.text();
+      
+      // Format log entry
+      const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${text}\n`;
+      
+      // Write to file
+      if (this.consoleLogStream) {
+        this.consoleLogStream.write(logEntry);
+      }
+      
+      // Also handle arguments for more detailed logging
+      if (type === 'error' || type === 'warning') {
+        msg.args().forEach((arg, index) => {
+          arg.jsonValue().then(value => {
+            if (value && typeof value === 'object' && value.stack) {
+              const stackEntry = `[${timestamp}] [${type.toUpperCase()}-STACK] ${value.stack}\n`;
+              if (this.consoleLogStream) {
+                this.consoleLogStream.write(stackEntry);
+              }
+            }
+          }).catch(() => {
+            // Ignore errors in getting argument values
+          });
+        });
+      }
+    });
+    
+    // Listen to page errors
+    this.page.on('pageerror', (error) => {
+      const timestamp = new Date().toISOString();
+      const errorEntry = `[${timestamp}] [PAGE-ERROR] ${error.message}\n${error.stack || ''}\n`;
+      
+      if (this.consoleLogStream) {
+        this.consoleLogStream.write(errorEntry);
+      }
+    });
   }
 
   private savePageState() {
@@ -157,6 +211,17 @@ export class SimplePage {
         type: 'close'
       });
     }
+    
+    // Close console log stream
+    if (this.consoleLogStream) {
+      this.consoleLogStream.end();
+      this.consoleLogStream = null;
+    }
+  }
+
+  // Get console log file path
+  public getConsoleLogPath(): string | null {
+    return this.consoleLogPath;
   }
 
   // For compatibility with getAccessibilityTree
@@ -339,6 +404,9 @@ ${scriptContent} \
       await this.ensureSimplePageSelectorEngine();
       await this.ensureSimplePageScript();
 
+      // Set up console log listener
+      this.setupConsoleLogListener();
+      
       this.initialized = true;
 
       // Record page creation if tracking is enabled (AFTER scripts are ready)

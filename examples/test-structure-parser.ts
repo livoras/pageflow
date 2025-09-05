@@ -1,5 +1,6 @@
 import { StructureParser } from '../src/utils/structure-parser';
 import { DOMSimHash } from '../src/utils/dom-simhash';
+import { DOMPatternMatcher } from '../src/utils/dom-pattern-matcher';
 import { ElementNode } from '../src/types/outline';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -49,9 +50,9 @@ if (fs.existsSync(outputDir)) {
 }
 fs.mkdirSync(outputDir);
 
-// Test with SimHash
-console.log('\n--- Testing SimHash for lists ---');
-const simhash = new DOMSimHash();
+// Test with new Pattern Matcher algorithm
+console.log('\n--- Testing Pattern Matcher for lists ---');
+const matcher = new DOMPatternMatcher();
 
 // Process each list
 lists.forEach((list, listIndex) => {
@@ -65,7 +66,7 @@ lists.forEach((list, listIndex) => {
   }
   
   // Find similar sequences within this list's children
-  const sequences = simhash.findAllSimilarSequences(list.children);
+  const sequences = matcher.findAllSimilarSequences(list.children, 0.8);
   
   if (sequences.length > 0) {
     console.log(`  Found ${sequences.length} similar sequences:`);

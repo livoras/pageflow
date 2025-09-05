@@ -7,6 +7,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { SimplePage } from './SimplePage';
 import { browserDOMHighlighterScript } from './utils/browser-dom-highlighter';
+import * as fs from 'fs';
 
 interface PageInfo {
   id: string;
@@ -26,15 +27,38 @@ export class SimplePageServer {
   private pages = new Map<string, PageInfo>();
   private userDataDir: string;
   private headless: boolean;
+  private algorithmScript: string | null = null;
+  private algorithmName: string = 'default';
 
   constructor(private port: number = parseInt(process.env.PORT || '3100')) {
     this.headless = process.env.HEADLESS === 'true';
     this.userDataDir = process.env.USER_DATA_DIR || 
       path.join(os.homedir(), '.simple-page-server', 'user-data');
     
+    // Load algorithm based on environment variable
+    this.loadAlgorithm();
+    
     this.app = express();
     this.app.use(express.json());
     this.registerRoutes();
+  }
+
+  private loadAlgorithm() {
+    const algorithmName = process.env.DETECTION_ALGORITHM || 'dom-pattern';
+    const algorithmPath = path.join(__dirname, '..', 'algorithms', `${algorithmName}.js`);
+    
+    try {
+      if (fs.existsSync(algorithmPath)) {
+        this.algorithmScript = fs.readFileSync(algorithmPath, 'utf-8');
+        this.algorithmName = algorithmName;
+        console.log(`[SimplePageServer] Loaded algorithm: ${algorithmName}`);
+      } else {
+        console.log(`[SimplePageServer] Algorithm file not found: ${algorithmPath}`);
+        console.log('[SimplePageServer] Available algorithms:', fs.readdirSync(path.join(__dirname, '..', 'algorithms')).filter(f => f.endsWith('.js')));
+      }
+    } catch (error) {
+      console.error(`[SimplePageServer] Error loading algorithm:`, error);
+    }
   }
 
   private registerRoutes() {
@@ -54,7 +78,8 @@ export class SimplePageServer {
         name: p.name,
         description: p.description,
         url: p.page.url(),
-        createdAt: p.createdAt
+        createdAt: p.createdAt,
+        consoleLogPath: p.simplePage.getConsoleLogPath()
       }));
       res.json(pages);
     });
@@ -62,7 +87,7 @@ export class SimplePageServer {
     // Create new page
     this.app.post('/api/pages', async (req: Request, res: Response) => {
       try {
-        const { name, description, url, timeout = 3000 } = req.body;
+        const { name, description, url, timeout = 10000 } = req.body;
         
         if (!name) {
           return res.status(400).json({ error: 'Page name is required' });
@@ -84,7 +109,8 @@ export class SimplePageServer {
           name: pageInfo.name,
           description: pageInfo.description,
           url: pageInfo.page.url(),
-          createdAt: pageInfo.createdAt
+          createdAt: pageInfo.createdAt,
+          consoleLogPath: pageInfo.simplePage.getConsoleLogPath()
         });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -299,7 +325,8 @@ export class SimplePageServer {
         description: pageInfo.description,
         url: pageInfo.page.url(),
         title: pageInfo.page.title(),
-        createdAt: pageInfo.createdAt
+        createdAt: pageInfo.createdAt,
+        consoleLogPath: pageInfo.simplePage.getConsoleLogPath()
       });
     });
 
@@ -343,10 +370,12 @@ export class SimplePageServer {
         await pageInfo.page.evaluate(browserDOMHighlighterScript);
         
         // Execute highlighting
-        const result = await pageInfo.page.evaluate(({ xpath, color, label }) => {
-          const element = (window as any).highlight(xpath, color, label);
-          return { success: element !== null };
-        }, { xpath, color, label });
+        const result = await pageInfo.page.evaluate(`
+          (() => {
+            const element = window.highlight(${JSON.stringify(xpath)}, ${JSON.stringify(color)}, ${JSON.stringify(label)});
+            return { success: element !== null };
+          })()
+        `);
         
         res.json(result);
       } catch (error: any) {
@@ -369,12 +398,14 @@ export class SimplePageServer {
           return res.status(404).json({ error: 'Page not found' });
         }
 
-        const result = await pageInfo.page.evaluate(({ xpath }) => {
-          if ((window as any).unhighlight) {
-            return { success: (window as any).unhighlight(xpath) };
-          }
-          return { success: false, error: 'Highlighter not initialized' };
-        }, { xpath });
+        const result = await pageInfo.page.evaluate(`
+          (() => {
+            if (window.unhighlight) {
+              return { success: window.unhighlight(${JSON.stringify(xpath)}) };
+            }
+            return { success: false, error: 'Highlighter not initialized' };
+          })()
+        `);
         
         res.json(result);
       } catch (error: any) {
@@ -399,6 +430,336 @@ export class SimplePageServer {
         });
         
         res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Detect lists on the page
+    this.app.post('/api/pages/:pageId/detect-lists', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { selector } = req.body;
+        
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        // Inject algorithm script if available
+        if (this.algorithmScript) {
+          await pageInfo.page.evaluate(this.algorithmScript);
+        } else {
+          return res.status(500).json({ error: 'No algorithm loaded' });
+        }
+        
+        // Build and execute detection code as string
+        const detectionCode = `
+          (() => {
+            // Inject algorithm
+            ${this.algorithmScript}
+            
+            // Helper function to get XPath
+            function getXPath(element) {
+              if (element.id) {
+                return '//*[@id="' + element.id + '"]';
+              }
+              
+              const parts = [];
+              let current = element;
+              
+              while (current && current.nodeType === Node.ELEMENT_NODE) {
+                let index = 1;
+                let sibling = current.previousSibling;
+                
+                while (sibling) {
+                  if (sibling.nodeType === Node.ELEMENT_NODE && 
+                      sibling.nodeName === current.nodeName) {
+                    index++;
+                  }
+                  sibling = sibling.previousSibling;
+                }
+                
+                const tagName = current.nodeName.toLowerCase();
+                const part = index > 1 ? tagName + '[' + index + ']' : tagName;
+                parts.unshift(part);
+                
+                current = current.parentElement;
+              }
+              
+              return parts.length ? '//' + parts.join('/') : '';
+            }
+            
+            // Get selector
+            const selector = ${JSON.stringify(selector || null)};
+            
+            // Get all elements
+            const root = selector ? document.querySelector(selector) : document.body;
+            if (!root) return [];
+            
+            const allElements = Array.from(root.getElementsByTagName('*'));
+            
+            // Run detection
+            let sequences = [];
+            if (window.SequenceDetector) {
+              const result = window.SequenceDetector.detect(allElements);
+              sequences = result.sequences || [];
+            } else if (window.detectLists) {
+              const detectedLists = window.detectLists(selector);
+              sequences = detectedLists.map(list => ({
+                elements: list.elements,
+                type: list.type,
+                count: list.elements.length
+              }));
+            }
+            
+            // Convert to XPath format
+            return sequences.map((seq, index) => {
+              const elementXPaths = seq.elements.map(el => getXPath(el));
+              
+              return {
+                index: index,
+                elements: elementXPaths,
+                count: seq.count || seq.elements.length,
+                type: seq.type || 'unknown'
+              };
+            });
+          })()
+        `;
+        
+        const lists = await pageInfo.page.evaluate(detectionCode);
+        
+        res.json({ lists, algorithm: this.algorithmName });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Highlight lists
+    this.app.post('/api/pages/:pageId/highlight-lists', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { lists } = req.body;
+        
+        if (!lists || !Array.isArray(lists)) {
+          return res.status(400).json({ error: 'lists array is required' });
+        }
+        
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        // Inject highlighter script if not already injected
+        await pageInfo.page.evaluate(browserDOMHighlighterScript);
+        
+        // Define color palette for different lists
+        const colors = [
+          'rgba(255, 0, 0, 0.3)',    // Red
+          'rgba(0, 255, 0, 0.3)',    // Green
+          'rgba(0, 0, 255, 0.3)',    // Blue
+          'rgba(255, 165, 0, 0.3)',  // Orange
+          'rgba(128, 0, 128, 0.3)',  // Purple
+          'rgba(255, 192, 203, 0.3)', // Pink
+          'rgba(0, 255, 255, 0.3)',   // Cyan
+          'rgba(255, 255, 0, 0.3)'    // Yellow
+        ];
+        
+        // Highlight each list with batch operations
+        const results = await pageInfo.page.evaluate(`
+          (() => {
+            const lists = ${JSON.stringify(lists)};
+            const colors = ${JSON.stringify(colors)};
+          const highlightResults: any[] = [];
+          
+          lists.forEach((list: any, listIndex: number) => {
+            const color = list.color || colors[listIndex % colors.length];
+            const labelPrefix = list.labelPrefix || 'List ' + (listIndex + 1);
+            
+            if (list.elements && Array.isArray(list.elements)) {
+              list.elements.forEach((xpath: string, itemIndex: number) => {
+                const element = window.highlight(
+                  xpath, 
+                  color, 
+                  labelPrefix + ' - Item ' + (itemIndex + 1)
+                );
+                highlightResults.push({
+                  xpath,
+                  success: element !== null,
+                  listIndex,
+                  itemIndex
+                });
+              });
+            } else if (list.xpath) {
+              // Single element highlighting
+              const element = window.highlight(
+                list.xpath,
+                color,
+                list.label || labelPrefix
+              );
+              highlightResults.push({
+                xpath: list.xpath,
+                success: element !== null
+              });
+            }
+          });
+          
+          return highlightResults;
+          })()
+        `);
+        
+        res.json({ results });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Detect and highlight lists (combined operation)
+    this.app.post('/api/pages/:pageId/detect-and-highlight-lists', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { selector, colorScheme = 'default' } = req.body;
+        
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        // Inject algorithm and highlighter scripts
+        if (this.algorithmScript) {
+          await pageInfo.page.evaluate(this.algorithmScript);
+        } else {
+          return res.status(500).json({ error: 'No algorithm loaded' });
+        }
+        await pageInfo.page.evaluate(browserDOMHighlighterScript);
+        
+        // Define color schemes
+        const colorSchemes: { [key: string]: string[] } = {
+          default: [
+            'rgba(255, 0, 0, 0.3)',    // Red
+            'rgba(0, 255, 0, 0.3)',    // Green
+            'rgba(0, 0, 255, 0.3)',    // Blue
+            'rgba(255, 165, 0, 0.3)',  // Orange
+            'rgba(128, 0, 128, 0.3)'   // Purple
+          ],
+          rainbow: [
+            'rgba(255, 0, 0, 0.3)',    // Red
+            'rgba(255, 165, 0, 0.3)',  // Orange
+            'rgba(255, 255, 0, 0.3)',  // Yellow
+            'rgba(0, 255, 0, 0.3)',    // Green
+            'rgba(0, 0, 255, 0.3)',    // Blue
+            'rgba(75, 0, 130, 0.3)',   // Indigo
+            'rgba(238, 130, 238, 0.3)' // Violet
+          ]
+        };
+        
+        const colors = colorSchemes[colorScheme] || colorSchemes.default;
+        
+        // Build and execute combined detection and highlighting code
+        const combinedCode = `
+          (() => {
+            // Inject algorithm
+            ${this.algorithmScript}
+            
+            // Inject highlighter
+            ${browserDOMHighlighterScript}
+            
+            // Helper function to get XPath
+            function getXPath(element) {
+              if (element.id) {
+                return '//*[@id="' + element.id + '"]';
+              }
+              
+              const parts = [];
+              let current = element;
+              
+              while (current && current.nodeType === Node.ELEMENT_NODE) {
+                let index = 1;
+                let sibling = current.previousSibling;
+                
+                while (sibling) {
+                  if (sibling.nodeType === Node.ELEMENT_NODE && 
+                      sibling.nodeName === current.nodeName) {
+                    index++;
+                  }
+                  sibling = sibling.previousSibling;
+                }
+                
+                const tagName = current.nodeName.toLowerCase();
+                const part = index > 1 ? tagName + '[' + index + ']' : tagName;
+                parts.unshift(part);
+                
+                current = current.parentElement;
+              }
+              
+              return parts.length ? '//' + parts.join('/') : '';
+            }
+            
+            // Get parameters
+            const selector = ${JSON.stringify(selector || null)};
+            const colors = ${JSON.stringify(colors)};
+            
+            // Get all elements
+            const root = selector ? document.querySelector(selector) : document.body;
+            if (!root) return { listsDetected: 0, totalHighlighted: 0, lists: [] };
+            
+            const allElements = Array.from(root.getElementsByTagName('*'));
+            
+            // Run detection
+            let sequences = [];
+            if (window.SequenceDetector) {
+              const result = window.SequenceDetector.detect(allElements);
+              sequences = result.sequences || [];
+            } else if (window.detectLists) {
+              const detectedLists = window.detectLists(selector);
+              sequences = detectedLists.map(list => ({
+                elements: list.elements,
+                type: list.type,
+                count: list.elements.length
+              }));
+            }
+            
+            const highlightedLists = [];
+            let totalHighlighted = 0;
+            
+            // Highlight each sequence
+            sequences.forEach((seq, seqIndex) => {
+              const color = colors[seqIndex % colors.length];
+              const highlightedElements = [];
+              
+              seq.elements.forEach((element, itemIndex) => {
+                const xpath = getXPath(element);
+                const highlighted = window.highlight(
+                  xpath,
+                  color,
+                  'List ' + (seqIndex + 1) + ' - Item ' + (itemIndex + 1)
+                );
+                
+                if (highlighted) {
+                  highlightedElements.push(xpath);
+                  totalHighlighted++;
+                }
+              });
+              
+              highlightedLists.push({
+                type: seq.type || 'unknown',
+                count: seq.count || seq.elements.length,
+                highlighted: highlightedElements.length,
+                color: color
+              });
+            });
+            
+            return {
+              listsDetected: sequences.length,
+              totalHighlighted: totalHighlighted,
+              lists: highlightedLists
+            };
+          })()
+        `;
+        
+        const result = await pageInfo.page.evaluate(combinedCode);
+        
+        res.json({ ...result, algorithm: this.algorithmName });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
@@ -455,7 +816,7 @@ export class SimplePageServer {
     );
   }
 
-  private async createPage(name: string, description?: string, url: string, timeout: number = 3000): Promise<string> {
+  private async createPage(name: string, description?: string, url: string, timeout: number = 10000): Promise<string> {
     if (!this.persistentContext) {
       throw new Error('Browser not initialized');
     }
