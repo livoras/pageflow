@@ -21,39 +21,6 @@ pnpm install
 
 ## Quick Start
 
-### Direct Usage
-
-```typescript
-import { chromium } from 'playwright';
-import { SimplePage } from './src/SimplePage';
-
-const browser = await chromium.launch();
-const page = await browser.newPage();
-const sp = new SimplePage(page);
-await sp.init();
-
-// Navigate to a URL
-await sp.navigate('https://example.com', 5000);
-
-// Get page structure
-const structure = await sp.getPageStructure();
-console.log(structure.simplified);  // Print simplified page structure
-console.log(structure.xpathMap);    // View EncodedId to XPath mappings
-
-// Operate elements via XPath
-await sp.actByXPath('//input[@name="search"]', 'fill', ['search text']);
-
-// Operate elements via EncodedId (requires structure extraction first)
-await sp.actByEncodedId('0-123', 'click');
-
-// Wait for timeout
-await sp.waitForTimeout(2000);
-
-// Check condition
-const hasLoginButton = await sp.checkCondition(/登录|login/i);
-const isErrorPage = await sp.checkCondition('错误|异常|error');
-```
-
 ### HTTP Server Mode
 
 Start the HTTP server for REST API access:
@@ -97,91 +64,7 @@ curl -X POST http://localhost:3100/api/pages/{pageId}/condition \
 curl -X DELETE http://localhost:3100/api/pages/{pageId}
 ```
 
-## API Reference
-
-### SimplePage Methods
-
-#### `getPageStructure(selector?: string)`
-
-Extracts the accessibility tree structure and element mappings.
-
-**Returns:**
-```typescript
-{
-  simplified: string,      // Simplified tree structure in text format
-  xpathMap: {              // EncodedId to XPath mapping
-    "0-123": "//html[1]/body[1]/div[1]/input[1]",
-    "0-124": "//html[1]/body[1]/div[1]/button[1]",
-    // ...
-  },
-  idToUrl: {},            // ID to URL mapping (for images and resources)
-  tree: object            // Raw A11y Tree object
-}
-```
-
-The `xpathMap` is crucial for:
-- Converting unstable EncodedIds to stable XPath selectors
-- Enabling precise element targeting after structure analysis
-- Building reliable automation scripts
-
-#### `navigate(url: string, timeout?: number, description?: string)`
-
-Navigates to a specified URL.
-
-**Parameters:**
-- `url`: Target URL to navigate to
-- `timeout`: Navigation timeout in milliseconds (default: 3000)
-- `description`: Optional description for logging
-
-#### `waitForTimeout(timeout: number, description?: string)`
-
-Waits for a specified duration.
-
-**Parameters:**
-- `timeout`: Wait duration in milliseconds
-- `description`: Optional description for logging
-
-#### `actByEncodedId(encodedId: string, method: string, args?: string[])`
-
-Operates on elements using EncodedId (internally converts to XPath via xpathMap).
-
-**Parameters:**
-- `encodedId`: Element identifier in format "frameOrdinal-backendNodeId"
-- `method`: Playwright action method (click, fill, select, etc.)
-- `args`: Optional arguments for the method
-
-#### `actByXPath(xpath: string, method: string, args?: string[])`
-
-Directly operates on elements using XPath selectors for more stable automation.
-
-**Parameters:**
-- `xpath`: XPath selector string
-- `method`: Playwright action method
-- `args`: Optional arguments for the method
-
-#### `checkCondition(pattern: RegExp | string, description?: string)`
-
-Checks if the page structure matches a regex pattern.
-
-**Parameters:**
-- `pattern`: Regular expression or string pattern to match
-- `description`: Optional description for logging
-
-**Returns:** `Promise<boolean>` - true if pattern matches, false otherwise
-
-**Examples:**
-```typescript
-// Check for specific text
-const hasError = await sp.checkCondition(/error|failed/i);
-
-// Check for element types
-const hasTextbox = await sp.checkCondition('textbox.*search');
-
-// Check for specific structure patterns
-const isLoggedIn = await sp.checkCondition(/user.*logout|profile/i);
-```
-
-### HTTP API Endpoints
+## HTTP API Reference
 
 #### POST `/api/pages`
 Creates a new page and navigates to URL.
@@ -204,6 +87,16 @@ Returns the simplified page structure.
 
 **Query Parameters:**
 - `selector`: Optional CSS selector to limit extraction scope
+
+**Response:**
+```json
+{
+  "structure": "Simplified page structure in text format",
+  "htmlPath": "/path/to/saved/html/file",
+  "actionsPath": "/path/to/actions/json/file",
+  "consoleLogPath": "/path/to/console/log/file"
+}
+```
 
 #### POST `/api/pages/:pageId/navigate`
 Navigates the page to a new URL.
@@ -322,6 +215,11 @@ PORT=3100 tsx examples/start-server.ts
 ```
 Starts the SimplePageServer with REST API on specified port.
 
+Environment variables:
+```bash
+PORT=3100 HEADLESS=true USER_DATA_DIR=/custom/path tsx examples/start-server.ts
+```
+
 ### User-Controlled Automation
 ```bash
 tsx examples/user-control.ts
@@ -334,6 +232,47 @@ tsx examples/simple-page-example.ts
 ```
 Shows basic SimplePage functionality.
 
+### SimplePageClient SDK Usage
+
+The SDK provides a high-level client wrapper around the HTTP API:
+
+```typescript
+import { SimplePageClient } from './src/client/SimplePageClient';
+
+// Create client instance
+const client = new SimplePageClient('http://localhost:3000');
+
+// Create and control pages
+const page = await client.createPage('MyPage', 'https://example.com');
+
+// Perform actions
+await page.navigate('https://google.com');
+await page.fill('//input[@name="q"]', 'search query');
+await page.click('//button[@type="submit"]');
+await page.wait(2000);
+
+// Check conditions
+const hasResults = await page.checkCondition('Search results');
+
+// Take screenshot
+const screenshot = await page.screenshot();
+
+// Close page when done
+await page.close();
+```
+
+The SDK Page class provides these methods:
+- `navigate(url, options)` - Navigate to URL
+- `click(xpath, description)` / `clickById(encodedId, description)` - Click elements
+- `fill(xpath, text, description)` / `fillById(encodedId, text, description)` - Fill inputs
+- `type()` / `typeById()` - Aliases for fill methods
+- `wait(timeout, description)` - Wait for specified time
+- `checkCondition(pattern, flags, description)` - Check page state
+- `getStructure(selector)` - Get page structure, returns {structure, htmlPath, actionsPath, consoleLogPath}
+- `getXPath(encodedId)` - Convert EncodedId to XPath
+- `screenshot()` - Take page screenshot
+- `close()` - Close the page
+
 ## Project Structure
 
 ```
@@ -341,13 +280,16 @@ src/
 ├── SimplePage.ts         # Core class wrapping automation functionality
 ├── SimplePageServer.ts   # HTTP API server with page management
 ├── utils.ts              # Accessibility Tree extraction utilities
-└── scriptContent.ts      # DOM manipulation scripts
+├── scriptContent.ts      # DOM manipulation scripts
+└── client/
+    └── SimplePageClient.ts   # SDK client wrapper for HTTP API
 
 examples/
 ├── get-structure.ts       # Page structure extraction tool
 ├── start-server.ts        # HTTP server launcher
 ├── user-control.ts        # User control demonstration
-└── simple-page-example.ts # Basic usage example
+├── simple-page-example.ts # Basic usage example
+└── amazon-search-example.ts # Real-world Amazon search example
 ```
 
 ## How It Works
@@ -373,8 +315,9 @@ examples/
 
 ### Server Mode
 - Uses persistent browser context for maintaining login states
-- User data stored in `~/.simple-page-server/user-data`
+- User data stored in `~/.simple-page-server/user-data` by default
 - Supports headless mode with `HEADLESS=true` environment variable
+- Custom user data directory with `USER_DATA_DIR=/path/to/dir` environment variable
 
 ## Use Cases
 

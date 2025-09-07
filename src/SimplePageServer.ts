@@ -156,7 +156,8 @@ export class SimplePageServer {
         res.json({ 
           structure: structure.simplified,
           htmlPath: structure.htmlPath,
-          actionsPath: pageInfo.simplePage.getActionsPath()
+          actionsPath: pageInfo.simplePage.getActionsPath(),
+          consoleLogPath: pageInfo.simplePage.getConsoleLogPath()
         });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
