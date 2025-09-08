@@ -14,7 +14,7 @@ async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
 }
 
 interface Action {
-  type: 'create' | 'act' | 'close';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition';
   url?: string;
   method?: string;
   xpath?: string;
@@ -22,6 +22,7 @@ interface Action {
   args?: string[];
   description?: string;
   timestamp: number;
+  timeout?: number;
   structure?: string;
   xpathMap?: string;
   screenshot?: string;
@@ -666,6 +667,46 @@ ${scriptContent} \
         url,
         timeout,
         description: description || `Navigate to ${url}`
+      });
+    }
+  }
+
+  // Navigate back in browser history
+  public async navigateBack(description?: string): Promise<void> {
+    await this.page.goBack();
+    
+    // Record navigation if tracking is enabled
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'navigateBack',
+        description: description || 'Navigate back'
+      });
+    }
+  }
+
+  // Navigate forward in browser history
+  public async navigateForward(description?: string): Promise<void> {
+    await this.page.goForward();
+    
+    // Record navigation if tracking is enabled
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'navigateForward',
+        description: description || 'Navigate forward'
+      });
+    }
+  }
+
+  // Reload the current page
+  public async reload(timeout: number = 3000, description?: string): Promise<void> {
+    await this.page.reload({ timeout });
+    
+    // Record reload if tracking is enabled
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'reload',
+        timeout,
+        description: description || 'Reload page'
       });
     }
   }

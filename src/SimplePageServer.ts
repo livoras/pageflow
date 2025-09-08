@@ -136,6 +136,84 @@ export class SimplePageServer {
       }
     });
 
+    // Navigate back
+    this.app.post('/api/pages/:pageId/navigate-back', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { description } = req.body;
+
+        if (description) {
+          console.log(`[NavigateBack] ${description}`);
+        }
+
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        await pageInfo.simplePage.navigateBack(description);
+        
+        res.json({ 
+          success: true,
+          url: pageInfo.page.url()
+        });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Navigate forward
+    this.app.post('/api/pages/:pageId/navigate-forward', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { description } = req.body;
+
+        if (description) {
+          console.log(`[NavigateForward] ${description}`);
+        }
+
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        await pageInfo.simplePage.navigateForward(description);
+        
+        res.json({ 
+          success: true,
+          url: pageInfo.page.url()
+        });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Reload page
+    this.app.post('/api/pages/:pageId/reload', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { timeout = 3000, description } = req.body;
+
+        if (description) {
+          console.log(`[Reload] ${description}`);
+        }
+
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+
+        await pageInfo.simplePage.reload(timeout, description);
+        
+        res.json({ 
+          success: true,
+          url: pageInfo.page.url()
+        });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Get page structure (simplified only)
     this.app.get('/api/pages/:pageId/structure', async (req: Request, res: Response) => {
       try {

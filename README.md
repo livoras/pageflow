@@ -47,6 +47,21 @@ curl -X POST http://localhost:3100/api/pages/{pageId}/navigate \
   -H "Content-Type: application/json" \
   -d '{"url": "https://google.com", "timeout": 5000}'
 
+# Navigate back
+curl -X POST http://localhost:3100/api/pages/{pageId}/navigate-back \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Go back to previous page"}'
+
+# Navigate forward
+curl -X POST http://localhost:3100/api/pages/{pageId}/navigate-forward \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Go forward in history"}'
+
+# Reload page
+curl -X POST http://localhost:3100/api/pages/{pageId}/reload \
+  -H "Content-Type: application/json" \
+  -d '{"timeout": 5000, "description": "Refresh the page"}'
+
 # Act on element by EncodedId
 curl -X POST http://localhost:3100/api/pages/{pageId}/act-id \
   -H "Content-Type: application/json" \
