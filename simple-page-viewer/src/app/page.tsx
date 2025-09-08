@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Recording, RecordingDetail, fetchRecordings, fetchRecording, getScreenshotUrl } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 export default function Home() {
   const searchParams = useSearchParams();
@@ -14,6 +15,45 @@ export default function Home() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalImage, setModalImage] = useState<string | null>(null);
+  
+  // Connect to WebSocket
+  const { on } = useWebSocket('ws://localhost:3100/ws');
+
+  // Set up WebSocket event handlers
+  useEffect(() => {
+    // Listen for new page creation
+    const unsubPageCreated = on('page-created', async (data) => {
+      console.log('New page created:', data);
+      // Refresh the recordings list
+      try {
+        const recordings = await fetchRecordings();
+        setRecordings(recordings);
+        // Auto-select the new page
+        handleRecordingClick(data.id);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    });
+
+    // Listen for action updates
+    const unsubActionRecorded = on('action-recorded', async (data) => {
+      console.log('Action recorded:', data);
+      // If this action is for the currently selected recording, refresh it
+      if (selectedId && data.pageId === selectedId) {
+        try {
+          const recording = await fetchRecording(selectedId);
+          setSelectedRecording(recording);
+        } catch (err: any) {
+          setError(err.message);
+        }
+      }
+    });
+
+    return () => {
+      unsubPageCreated();
+      unsubActionRecorded();
+    };
+  }, [on, selectedId]);
 
   // Fetch recordings list
   useEffect(() => {

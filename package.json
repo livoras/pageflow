@@ -55,13 +55,15 @@
   },
   "dependencies": {
     "@types/cheerio": "^1.0.0",
+    "@types/ws": "^8.18.1",
     "axios": "^1.11.0",
     "cheerio": "^1.1.2",
     "devtools-protocol": "^0.0.1464554",
     "express": "^5.1.0",
     "playwright": "^1.52.0",
     "uuid": "^11.1.0",
-    "vm2": "^3.9.19"
+    "vm2": "^3.9.19",
+    "ws": "^8.18.3"
   },
   "directories": {
     "doc": "docs",

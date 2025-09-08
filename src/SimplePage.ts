@@ -55,6 +55,7 @@ export class SimplePage {
   private consoleLogPath: string | null = null;
   private consoleLogStream: fs.WriteStream | null = null;
   private enableScreenshot: boolean = false;
+  private onAction?: (pageId: string, action: Action) => void;
 
   public get frameId(): string {
     return this.rootFrameId;
@@ -215,6 +216,11 @@ export class SimplePage {
     
     // Save updated state
     this.savePageState();
+    
+    // Call callback if set
+    if (this.onAction && this.pageId) {
+      this.onAction(this.pageId, fullAction);
+    }
   }
 
   public async recordClose() {
@@ -234,6 +240,11 @@ export class SimplePage {
   // Get console log file path
   public getConsoleLogPath(): string | null {
     return this.consoleLogPath;
+  }
+
+  // Set callback for action events
+  public setOnAction(callback: (pageId: string, action: Action) => void) {
+    this.onAction = callback;
   }
 
   // For compatibility with getAccessibilityTree

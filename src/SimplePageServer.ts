@@ -8,6 +8,8 @@ import * as os from 'os';
 import { SimplePage } from './SimplePage';
 import { browserDOMHighlighterScript } from './utils/browser-dom-highlighter';
 import * as fs from 'fs';
+import { WebSocketServer } from 'ws';
+import type { WebSocket } from 'ws';
 
 interface PageInfo {
   id: string;
@@ -27,6 +29,8 @@ export class SimplePageServer {
   private pages = new Map<string, PageInfo>();
   private userDataDir: string;
   private headless: boolean;
+  private wss: WebSocketServer | null = null;
+  private wsClients = new Set<WebSocket>();
 
   constructor(private port: number = parseInt(process.env.PORT || '3100')) {
     this.headless = process.env.HEADLESS === 'true';
@@ -614,6 +618,27 @@ export class SimplePageServer {
       console.log(`SimplePageServer running on http://localhost:${this.port}`);
       console.log(`User data directory: ${this.userDataDir}`);
     });
+
+    // Initialize WebSocket server
+    this.wss = new WebSocketServer({ 
+      server: this.httpServer,
+      path: '/ws'
+    });
+
+    this.wss.on('connection', (ws: WebSocket) => {
+      console.log('WebSocket client connected');
+      this.wsClients.add(ws);
+
+      ws.on('close', () => {
+        console.log('WebSocket client disconnected');
+        this.wsClients.delete(ws);
+      });
+
+      ws.on('error', (error) => {
+        console.error('WebSocket error:', error);
+        this.wsClients.delete(ws);
+      });
+    });
   }
 
   async stop() {
@@ -626,6 +651,13 @@ export class SimplePageServer {
     if (this.persistentContext) {
       await this.persistentContext.close();
       this.persistentContext = null;
+    }
+
+    // Close WebSocket connections
+    if (this.wss) {
+      this.wsClients.forEach(ws => ws.close());
+      this.wss.close();
+      this.wss = null;
     }
 
     // Stop HTTP server
@@ -689,6 +721,15 @@ export class SimplePageServer {
     );
   }
 
+  private broadcast(type: string, data: any) {
+    const message = JSON.stringify({ type, data });
+    this.wsClients.forEach(ws => {
+      if (ws.readyState === ws.OPEN) {
+        ws.send(message);
+      }
+    });
+  }
+
   private async createPage(name: string, description: string | undefined, url: string, timeout: number = 10000): Promise<string> {
     if (!this.persistentContext) {
       throw new Error('Browser not initialized');
@@ -698,6 +739,12 @@ export class SimplePageServer {
     const page = await this.persistentContext.newPage();
     const enableScreenshot = process.env.SCREENSHOT === 'true';
     const simplePage = new SimplePage(page, id, description, enableScreenshot);
+    
+    // Set callback to broadcast action events
+    simplePage.setOnAction((pageId: string, action: any) => {
+      this.broadcast('action-recorded', { pageId, action });
+    });
+    
     await simplePage.init();
 
     await simplePage.navigate(url, timeout, `Initial navigation to ${url}`);
@@ -712,6 +759,16 @@ export class SimplePageServer {
     };
 
     this.pages.set(id, pageInfo);
+
+    // Broadcast new page event
+    this.broadcast('page-created', {
+      id,
+      name,
+      description,
+      url: page.url(),
+      createdAt: pageInfo.createdAt
+    });
+
     return id;
   }
 
