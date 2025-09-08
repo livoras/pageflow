@@ -500,6 +500,96 @@ ${scriptContent} \
       await locator.hover();
     } else if (method === 'press' && args[0]) {
       await locator.press(args[0]);
+    } else if (method === 'scrollY' && args[0]) {
+      const target = args[0];
+      
+      if (target === 'top') {
+        await locator.evaluate(el => {
+          const isBody = el.tagName.toLowerCase() === 'body';
+          if (isBody) {
+            window.scrollTo(0, 0);
+          } else {
+            el.scrollTop = 0;
+          }
+        });
+      } else if (target === 'bottom') {
+        await locator.evaluate(el => {
+          const isBody = el.tagName.toLowerCase() === 'body';
+          if (isBody) {
+            window.scrollTo(0, document.documentElement.scrollHeight);
+          } else {
+            el.scrollTop = el.scrollHeight;
+          }
+        });
+      } else {
+        const pixels = parseInt(target);
+        if (pixels > 0) {
+          // 相对滚动（向下）
+          await locator.evaluate((el, px) => {
+            const isBody = el.tagName.toLowerCase() === 'body';
+            if (isBody) {
+              window.scrollBy(0, px);
+            } else {
+              el.scrollTop += px;
+            }
+          }, pixels);
+        } else {
+          // 绝对位置
+          await locator.evaluate((el, px) => {
+            const isBody = el.tagName.toLowerCase() === 'body';
+            if (isBody) {
+              window.scrollTo(0, Math.abs(px));
+            } else {
+              el.scrollTop = Math.abs(px);
+            }
+          }, Math.abs(pixels));
+        }
+      }
+    } else if (method === 'scrollX' && args[0]) {
+      const target = args[0];
+      
+      if (target === 'left') {
+        await locator.evaluate(el => {
+          const isBody = el.tagName.toLowerCase() === 'body';
+          if (isBody) {
+            window.scrollTo(0, window.scrollY);
+          } else {
+            el.scrollLeft = 0;
+          }
+        });
+      } else if (target === 'right') {
+        await locator.evaluate(el => {
+          const isBody = el.tagName.toLowerCase() === 'body';
+          if (isBody) {
+            window.scrollTo(document.documentElement.scrollWidth, window.scrollY);
+          } else {
+            el.scrollLeft = el.scrollWidth;
+          }
+        });
+      } else {
+        const pixels = parseInt(target);
+        if (pixels > 0) {
+          // 相对滚动（向右）
+          await locator.evaluate((el, px) => {
+            const isBody = el.tagName.toLowerCase() === 'body';
+            if (isBody) {
+              window.scrollBy(px, 0);
+            } else {
+              el.scrollLeft += px;
+            }
+          }, pixels);
+        } else {
+          // 绝对位置
+          await locator.evaluate((el, px) => {
+            const isBody = el.tagName.toLowerCase() === 'body';
+            if (isBody) {
+              window.scrollTo(Math.abs(px), window.scrollY);
+            } else {
+              el.scrollLeft = Math.abs(px);
+            }
+          }, Math.abs(pixels));
+        }
+      }
     } else {
       throw new Error(`Unsupported method: ${method}`);
     }

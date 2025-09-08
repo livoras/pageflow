@@ -52,6 +52,16 @@ curl -X POST http://localhost:3100/api/pages/{pageId}/act-id \
   -H "Content-Type: application/json" \
   -d '{"encodedId": "0-123", "method": "click"}'
 
+# Scroll to bottom
+curl -X POST http://localhost:3100/api/pages/{pageId}/act-xpath \
+  -H "Content-Type: application/json" \
+  -d '{"xpath": "//body", "method": "scrollY", "args": ["bottom"]}'
+
+# Scroll down 500 pixels
+curl -X POST http://localhost:3100/api/pages/{pageId}/act-xpath \
+  -H "Content-Type: application/json" \
+  -d '{"xpath": "//body", "method": "scrollY", "args": ["500"]}'
+
 # Wait
 curl -X POST http://localhost:3100/api/pages/{pageId}/wait \
   -H "Content-Type: application/json" \
@@ -136,6 +146,23 @@ Acts on element by EncodedId.
 }
 ```
 
+**Supported methods:**
+- `click` - Click the element
+- `fill` - Fill input field (args: [text])
+- `selectOption` - Select dropdown option (args: [value])
+- `hover` - Hover over element
+- `press` - Press key (args: [key])
+- `scrollY` - Vertical scroll (args: ["top" | "bottom" | number])
+  - `"top"` - Scroll to top
+  - `"bottom"` - Scroll to bottom
+  - Positive number - Scroll down by pixels (relative)
+  - Negative number - Scroll to absolute position
+- `scrollX` - Horizontal scroll (args: ["left" | "right" | number])
+  - `"left"` - Scroll to leftmost
+  - `"right"` - Scroll to rightmost
+  - Positive number - Scroll right by pixels (relative)
+  - Negative number - Scroll to absolute position
+
 #### POST `/api/pages/:pageId/act-xpath`
 Acts on element by XPath.
 
@@ -148,6 +175,8 @@ Acts on element by XPath.
   "description": "Click submit button"
 }
 ```
+
+Supports the same methods as act-id.
 
 #### POST `/api/pages/:pageId/condition`
 Checks if page structure matches a pattern.
