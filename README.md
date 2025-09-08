@@ -62,6 +62,21 @@ curl -X POST http://localhost:3100/api/pages/{pageId}/act-xpath \
   -H "Content-Type: application/json" \
   -d '{"xpath": "//body", "method": "scrollY", "args": ["500"]}'
 
+# Handle alert dialog
+curl -X POST http://localhost:3100/api/pages/{pageId}/act-xpath \
+  -H "Content-Type: application/json" \
+  -d '{"xpath": "//button[@onclick=\"alert()\"]", "method": "handleDialog", "args": ["accept"]}'
+
+# Handle prompt dialog with text
+curl -X POST http://localhost:3100/api/pages/{pageId}/act-xpath \
+  -H "Content-Type: application/json" \
+  -d '{"xpath": "//button", "method": "handleDialog", "args": ["accept", "Hello World"]}'
+
+# Upload file
+curl -X POST http://localhost:3100/api/pages/{pageId}/act-xpath \
+  -H "Content-Type: application/json" \
+  -d '{"xpath": "//input[@type=\"file\"]", "method": "fileUpload", "args": ["/tmp/document.pdf"]}'
+
 # Wait
 curl -X POST http://localhost:3100/api/pages/{pageId}/wait \
   -H "Content-Type: application/json" \
@@ -162,6 +177,13 @@ Acts on element by EncodedId.
   - `"right"` - Scroll to rightmost
   - Positive number - Scroll right by pixels (relative)
   - Negative number - Scroll to absolute position
+- `handleDialog` - Handle browser dialogs (args: ["accept" | "dismiss", "prompt text (optional)"])
+  - `"accept"` - Accept the dialog (OK/Confirm)
+  - `"dismiss"` - Dismiss the dialog (Cancel)
+  - Second argument is optional text for prompt dialogs
+- `fileUpload` - Upload files to input element (args: [filepath] or [filepath1, filepath2, ...])
+  - Single file: `["path/to/file.pdf"]`
+  - Multiple files: `["file1.jpg", "file2.png"]`
 
 #### POST `/api/pages/:pageId/act-xpath`
 Acts on element by XPath.

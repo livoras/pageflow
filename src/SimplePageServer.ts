@@ -507,7 +507,8 @@ export class SimplePageServer {
 
     const id = uuid();
     const page = await this.persistentContext.newPage();
-    const simplePage = new SimplePage(page, id, description);
+    const enableScreenshot = process.env.SCREENSHOT === 'true';
+    const simplePage = new SimplePage(page, id, description, enableScreenshot);
     await simplePage.init();
 
     await page.goto(url, { timeout });

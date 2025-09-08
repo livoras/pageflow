@@ -24,6 +24,7 @@ interface Action {
   timestamp: number;
   structure?: string;
   xpathMap?: string;
+  screenshot?: string;
 }
 
 interface PageState {
@@ -52,6 +53,7 @@ export class SimplePage {
   private pageState: PageState | null = null;
   private consoleLogPath: string | null = null;
   private consoleLogStream: fs.WriteStream | null = null;
+  private enableScreenshot: boolean = false;
 
   public get frameId(): string {
     return this.rootFrameId;
@@ -61,8 +63,9 @@ export class SimplePage {
     this.rootFrameId = newId;
   }
 
-  constructor(page: PlaywrightPage, id?: string, description?: string) {
+  constructor(page: PlaywrightPage, id?: string, description?: string, enableScreenshot: boolean = false) {
     this.page = page;
+    this.enableScreenshot = enableScreenshot;
     this.logger = (info: any) => {
       if (info.level === 1) {
         console.error(info.message);
@@ -183,6 +186,14 @@ export class SimplePage {
     const xpathPath = path.join(dataDir, xpathFile);
     fs.writeFileSync(xpathPath, JSON.stringify(structure.xpathMap, null, 2));
     action.xpathMap = xpathFile;
+    
+    // Save screenshot if enabled
+    if (this.enableScreenshot) {
+      const screenshotFile = `${timestamp}-screenshot.png`;
+      const screenshotPath = path.join(dataDir, screenshotFile);
+      await this.page.screenshot({ path: screenshotPath });
+      action.screenshot = screenshotFile;
+    }
   }
 
   private async recordAction(action: Omit<Action, 'timestamp'>) {
@@ -590,6 +601,25 @@ ${scriptContent} \
           }, Math.abs(pixels));
         }
       }
+    } else if (method === 'handleDialog' && args[0]) {
+      const action = args[0]; // 'accept' or 'dismiss'
+      const promptText = args[1]; // Optional text for prompt dialogs
+      
+      // Set up dialog handler before triggering the action
+      this.page.once('dialog', async dialog => {
+        if (action === 'accept') {
+          await dialog.accept(promptText || '');
+        } else if (action === 'dismiss') {
+          await dialog.dismiss();
+        }
+      });
+      
+      // Click the element that triggers the dialog
+      await locator.click();
+    } else if (method === 'fileUpload' && args.length > 0) {
+      // Handle file upload
+      const filePaths = Array.isArray(args) ? args : [args[0]];
+      await locator.setInputFiles(filePaths);
     } else {
       throw new Error(`Unsupported method: ${method}`);
     }
