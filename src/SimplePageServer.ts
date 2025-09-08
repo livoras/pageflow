@@ -35,6 +35,18 @@ export class SimplePageServer {
     
     this.app = express();
     this.app.use(express.json());
+    
+    // Enable CORS for viewer on port 3102
+    this.app.use((req, res, next) => {
+      res.header('Access-Control-Allow-Origin', 'http://localhost:3102');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+      }
+      next();
+    });
+    
     this.registerRoutes();
   }
 
@@ -490,6 +502,105 @@ export class SimplePageServer {
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
+    });
+
+    // Get all recordings
+    this.app.get('/api/recordings', async (_req: Request, res: Response) => {
+      try {
+        const recordingsBaseDir = os.tmpdir();
+        const simplepageDir = path.join(recordingsBaseDir, 'simplepage');
+        
+        if (!fs.existsSync(simplepageDir)) {
+          return res.json([]);
+        }
+
+        const recordings = [];
+        const dirs = fs.readdirSync(simplepageDir);
+        
+        for (const dir of dirs) {
+          const recordingPath = path.join(simplepageDir, dir);
+          const actionsPath = path.join(recordingPath, 'actions.json');
+          
+          if (fs.existsSync(actionsPath)) {
+            try {
+              const actionsContent = fs.readFileSync(actionsPath, 'utf-8');
+              const actionsData = JSON.parse(actionsContent);
+              
+              // Get directory creation time as fallback
+              const stats = fs.statSync(recordingPath);
+              
+              recordings.push({
+                id: actionsData.id || dir,
+                description: actionsData.description || 'Unknown',
+                actionsCount: actionsData.actions ? actionsData.actions.length : 0,
+                lastAction: actionsData.actions && actionsData.actions.length > 0 
+                  ? actionsData.actions[actionsData.actions.length - 1].type 
+                  : null,
+                createdAt: actionsData.actions && actionsData.actions.length > 0
+                  ? new Date(actionsData.actions[0].timestamp).toISOString()
+                  : stats.birthtime.toISOString()
+              });
+            } catch (e) {
+              console.error(`Error reading actions.json for ${dir}:`, e);
+            }
+          }
+        }
+
+        // Sort by creation time, newest first
+        recordings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
+        res.json(recordings);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get specific recording
+    this.app.get('/api/recordings/:recordingId', async (req: Request, res: Response) => {
+      try {
+        const { recordingId } = req.params;
+        const recordingsBaseDir = os.tmpdir();
+        const recordingPath = path.join(recordingsBaseDir, 'simplepage', recordingId);
+        const actionsPath = path.join(recordingPath, 'actions.json');
+        
+        if (!fs.existsSync(actionsPath)) {
+          return res.status(404).json({ error: 'Recording not found' });
+        }
+
+        const actionsContent = fs.readFileSync(actionsPath, 'utf-8');
+        const actionsData = JSON.parse(actionsContent);
+        
+        // Add base path for files
+        const response = {
+          ...actionsData,
+          basePath: recordingPath,
+          dataPath: path.join(recordingPath, 'data')
+        };
+        
+        res.json(response);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Serve recording files (screenshots, etc)
+    this.app.get('/api/recordings/:recordingId/files/:filename', (req: Request, res: Response) => {
+      const { recordingId, filename } = req.params;
+      const recordingsBaseDir = os.tmpdir();
+      const filePath = path.join(recordingsBaseDir, 'simplepage', recordingId, 'data', filename);
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      // Security check - ensure we're not serving files outside the recording directory
+      const resolvedPath = path.resolve(filePath);
+      const expectedBase = path.resolve(path.join(recordingsBaseDir, 'simplepage', recordingId, 'data'));
+      if (!resolvedPath.startsWith(expectedBase)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      res.sendFile(resolvedPath);
     });
 
   }
