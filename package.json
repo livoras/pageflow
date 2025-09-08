@@ -27,7 +27,8 @@
     "prepare": "pnpm run build",
     "lint": "pnpm run prettier:fix && pnpm run eslint",
     "release": "pnpm run build && changeset publish",
-    "release-canary": "pnpm run build && changeset version --snapshot && changeset publish --tag alpha"
+    "release-canary": "pnpm run build && changeset version --snapshot && changeset publish --tag alpha",
+    "server": "bun run examples/start-server.ts"
   },
   "files": [
     "dist/**"
@@ -43,6 +44,7 @@
     "@types/uuid": "^10.0.0",
     "jsdom": "^26.1.0",
     "node-fetch": "^3.3.2",
+    "ts-node": "^10.9.2",
     "tsx": "^4.10.5",
     "typescript": "^5.2.2"
   },

@@ -483,56 +483,23 @@ ${scriptContent} \
 
   // 直接通过 XPath 操作元素
   public async actByXPath(xpath: string, method: string, args: string[] = [], description?: string, waitTimeout: number = 3000): Promise<void> {
-    // 使用 evaluate 直接操作 DOM，避免 Playwright 的 __name 错误
+    // 使用 Playwright 的 locator API 进行操作
+    const locator = this.page.locator(xpath);
+    
     if (method === 'fill' && args[0]) {
-      await this.page.evaluate(({ xpath, value }) => {
-        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        const element = result.singleNodeValue as HTMLInputElement;
-        if (element) {
-          element.value = value;
-          element.dispatchEvent(new Event('input', { bubbles: true }));
-          element.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }, { xpath, value: args[0] });
+      await locator.fill(args[0]);
     } else if (method === 'click') {
-      await this.page.evaluate(({ xpath }) => {
-        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        const element = result.singleNodeValue as HTMLElement;
-        if (element && typeof element.click === 'function') {
-          element.click();
-        } else if (element) {
-          // Fallback for elements that don't have a click method
-          const event = new MouseEvent('click', { bubbles: true, cancelable: true });
-          element.dispatchEvent(event);
-        }
-      }, { xpath });
+      await locator.click();
     } else if (method === 'select' && args[0]) {
-      await this.page.evaluate(({ xpath, value }) => {
-        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        const element = result.singleNodeValue as HTMLSelectElement;
-        if (element) {
-          element.value = value;
-          element.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }, { xpath, value: args[0] });
+      await locator.selectOption(args[0]);
     } else if (method === 'check') {
-      await this.page.evaluate(({ xpath }) => {
-        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        const element = result.singleNodeValue as HTMLInputElement;
-        if (element && !element.checked) {
-          element.checked = true;
-          element.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }, { xpath });
+      await locator.check();
     } else if (method === 'uncheck') {
-      await this.page.evaluate(({ xpath }) => {
-        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        const element = result.singleNodeValue as HTMLInputElement;
-        if (element && element.checked) {
-          element.checked = false;
-          element.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }, { xpath });
+      await locator.uncheck();
+    } else if (method === 'hover') {
+      await locator.hover();
+    } else if (method === 'press' && args[0]) {
+      await locator.press(args[0]);
     } else {
       throw new Error(`Unsupported method: ${method}`);
     }

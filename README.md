@@ -26,7 +26,9 @@ pnpm install
 Start the HTTP server for REST API access:
 
 ```bash
-PORT=3100 tsx examples/start-server.ts
+PORT=3100 bun run examples/start-server.ts
+# or using npm script
+PORT=3100 pnpm run server
 ```
 
 The server provides a complete REST API for browser automation:
@@ -197,7 +199,7 @@ Each action records:
 
 ### Extract Page Structure
 ```bash
-tsx examples/get-structure.ts https://example.com
+bun run examples/get-structure.ts https://example.com
 ```
 Saves page structure (.txt) and XPath mappings (.json) to system temp directory.
 
@@ -211,24 +213,26 @@ Saves page structure (.txt) and XPath mappings (.json) to system temp directory.
 
 ### Start HTTP Server
 ```bash
-PORT=3100 tsx examples/start-server.ts
+PORT=3100 bun run examples/start-server.ts
+# or using npm script
+pnpm run server
 ```
 Starts the SimplePageServer with REST API on specified port.
 
 Environment variables:
 ```bash
-PORT=3100 HEADLESS=true USER_DATA_DIR=/custom/path tsx examples/start-server.ts
+PORT=3100 HEADLESS=true USER_DATA_DIR=/custom/path bun run examples/start-server.ts
 ```
 
 ### User-Controlled Automation
 ```bash
-tsx examples/user-control.ts
+bun run examples/user-control.ts
 ```
 Demonstrates manual page analysis and operation workflow.
 
 ### Basic Usage Example
 ```bash
-tsx examples/simple-page-example.ts
+bun run examples/simple-page-example.ts
 ```
 Shows basic SimplePage functionality.
 

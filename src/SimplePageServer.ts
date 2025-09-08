@@ -460,12 +460,47 @@ export class SimplePageServer {
       this.userDataDir,
       {
         headless: this.headless,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: [
+          // 反自动化检测
+          '--disable-blink-features=AutomationControlled',
+          '--exclude-switches=enable-automation',
+          '--enable-automation=false',
+          
+          // 性能和资源管理
+          '--disable-dev-shm-usage',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--window-size=1920,1080',
+          '--start-maximized',
+          
+          // 禁用通知和扩展
+          '--disable-notifications',
+          '--disable-extensions',
+          '--disable-default-apps',
+          '--disable-infobars',
+          '--mute-audio',
+          '--no-first-run',
+          
+          // 后台进程控制
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          
+          // 网络和安全
+          '--enable-features=NetworkService,NetworkServiceInProcess',
+          '--disable-web-security',
+          '--allow-running-insecure-content',
+          
+          // 语言设置
+          '--lang=zh-CN',
+          '--disable-features=UserAgentClientHint'
+        ]
       }
     );
   }
 
-  private async createPage(name: string, description?: string, url: string, timeout: number = 10000): Promise<string> {
+  private async createPage(name: string, description: string | undefined, url: string, timeout: number = 10000): Promise<string> {
     if (!this.persistentContext) {
       throw new Error('Browser not initialized');
     }
