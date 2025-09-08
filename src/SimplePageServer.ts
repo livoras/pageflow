@@ -700,7 +700,7 @@ export class SimplePageServer {
     const simplePage = new SimplePage(page, id, description, enableScreenshot);
     await simplePage.init();
 
-    await page.goto(url, { timeout });
+    await simplePage.navigate(url, timeout, `Initial navigation to ${url}`);
 
     const pageInfo: PageInfo = {
       id,

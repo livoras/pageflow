@@ -496,7 +496,8 @@ ${scriptContent} \
   // 直接通过 XPath 操作元素
   public async actByXPath(xpath: string, method: string, args: string[] = [], description?: string, waitTimeout: number = 3000): Promise<void> {
     // 使用 Playwright 的 locator API 进行操作
-    const locator = this.page.locator(xpath);
+    // Ensure XPath is properly formatted for Playwright
+    const locator = this.page.locator(`xpath=${xpath}`);
     
     if (method === 'fill' && args[0]) {
       await locator.fill(args[0]);
