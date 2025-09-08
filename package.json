@@ -28,7 +28,9 @@
     "lint": "pnpm run prettier:fix && pnpm run eslint",
     "release": "pnpm run build && changeset publish",
     "release-canary": "pnpm run build && changeset version --snapshot && changeset publish --tag alpha",
-    "server": "bun run examples/start-server.ts"
+    "server": "bun run examples/start-server.ts",
+    "viewer": "cd simple-page-viewer && pnpm run dev",
+    "viewer:build": "cd simple-page-viewer && pnpm run build"
   },
   "files": [
     "dist/**"

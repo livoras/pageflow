@@ -260,6 +260,22 @@ Each action records:
 - Page structure snapshot
 - XPath mappings
 - For condition checks: pattern, flags, and match result
+- Screenshot (if SCREENSHOT=true environment variable is set)
+
+### Recording API Endpoints
+
+The server provides API endpoints to access recordings:
+
+```bash
+# List all recordings
+curl http://localhost:3100/api/recordings
+
+# Get specific recording details
+curl http://localhost:3100/api/recordings/{recordingId}
+
+# Access recording files (screenshots, etc)
+curl http://localhost:3100/api/recordings/{recordingId}/files/{filename}
+```
 
 ## Example Scripts
 
@@ -287,8 +303,23 @@ Starts the SimplePageServer with REST API on specified port.
 
 Environment variables:
 ```bash
-PORT=3100 HEADLESS=true USER_DATA_DIR=/custom/path bun run examples/start-server.ts
+PORT=3100 HEADLESS=true USER_DATA_DIR=/custom/path SCREENSHOT=true bun run examples/start-server.ts
 ```
+
+- `PORT` - Server port (default: 3100)
+- `HEADLESS` - Run browser in headless mode (default: false)
+- `USER_DATA_DIR` - Custom user data directory (default: ~/.simple-page-server/user-data)
+- `SCREENSHOT` - Enable screenshot capture for each action (default: false)
+
+### Start Recordings Viewer
+```bash
+# Start viewer on port 3102
+pnpm run viewer
+
+# Build viewer for production
+pnpm run viewer:build
+```
+Opens the recordings viewer interface to browse operation histories and screenshots.
 
 ### User-Controlled Automation
 ```bash
