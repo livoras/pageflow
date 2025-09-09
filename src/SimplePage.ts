@@ -508,7 +508,7 @@ ${scriptContent} \
   }
 
   // 直接通过 XPath 操作元素
-  public async actByXPath(xpath: string, method: string, args: string[] = [], description?: string, waitTimeout: number = 3000): Promise<void> {
+  public async actByXPath(xpath: string, method: string, args: string[] = [], description?: string, waitTimeout?: number): Promise<void> {
     // 使用 Playwright 的 locator API 进行操作
     // Ensure XPath is properly formatted for Playwright
     const locator = this.page.locator(`xpath=${xpath}`);
@@ -656,7 +656,7 @@ ${scriptContent} \
   }
 
   // 通过 EncodedId 操作元素（内部调用 actByXPath）
-  public async actByEncodedId(encodedId: string, method: string, args: string[] = [], description?: string, waitTimeout: number = 3000): Promise<void> {
+  public async actByEncodedId(encodedId: string, method: string, args: string[] = [], description?: string, waitTimeout?: number): Promise<void> {
     const xpathMap = (global as any).__simplepage_xpath_map;
     if (!xpathMap) {
       throw new Error("XPath map not available. Run getPageStructure first.");
@@ -675,6 +675,9 @@ ${scriptContent} \
   public async navigate(url: string, timeout: number = 3000, description?: string): Promise<void> {
     await this.page.goto(url, { timeout });
     
+    // Wait for DOM to settle after navigation
+    await this._waitForSettledDom();
+    
     // Record navigation if tracking is enabled
     if (this.pageState) {
       await this.recordAction({
@@ -690,6 +693,9 @@ ${scriptContent} \
   public async navigateBack(description?: string): Promise<void> {
     await this.page.goBack();
     
+    // Wait for DOM to settle after navigation
+    await this._waitForSettledDom();
+    
     // Record navigation if tracking is enabled
     if (this.pageState) {
       await this.recordAction({
@@ -703,6 +709,9 @@ ${scriptContent} \
   public async navigateForward(description?: string): Promise<void> {
     await this.page.goForward();
     
+    // Wait for DOM to settle after navigation
+    await this._waitForSettledDom();
+    
     // Record navigation if tracking is enabled
     if (this.pageState) {
       await this.recordAction({
@@ -715,6 +724,9 @@ ${scriptContent} \
   // Reload the current page
   public async reload(timeout: number = 3000, description?: string): Promise<void> {
     await this.page.reload({ timeout });
+    
+    // Wait for DOM to settle after reload
+    await this._waitForSettledDom();
     
     // Record reload if tracking is enabled
     if (this.pageState) {
@@ -798,7 +810,7 @@ ${scriptContent} \
    *                    `this.simplepage.domSettleTimeoutMs`.
    */
   public async _waitForSettledDom(timeoutMs?: number): Promise<void> {
-    const timeout = timeoutMs ?? 30000;  // Default 30 seconds
+    const timeout = timeoutMs ?? this.domSettleTimeoutMs;  // Use configured default
     const client = await this.getCDPClient();
 
     const hasDoc = !!(await this.page.title().catch(() => false));

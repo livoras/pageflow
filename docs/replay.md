@@ -68,9 +68,9 @@ async function replayPartial(
 ```typescript
 interface ReplayOptions {
   serverUrl?: string;        // SimplePage server URL (default: 'http://localhost:3100')
-  delay?: number;           // Delay between actions in milliseconds
-  verbose?: boolean;        // Enable detailed logging
-  continueOnError?: boolean; // Continue replay even if an action fails
+  delay?: number;           // Delay between actions in milliseconds (default: 1000ms)
+  verbose?: boolean;        // Enable detailed logging (default: false)
+  continueOnError?: boolean; // Continue replay even if an action fails (default: false)
 }
 ```
 

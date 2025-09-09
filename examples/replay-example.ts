@@ -84,6 +84,23 @@ async function example3() {
   }
 }
 
+// Example 4: Replay Baidu search actions
+async function example4() {
+  console.log('\nExample 4: Replay Baidu search test');
+  
+  // Using the Baidu search test actions file
+  const actionsFile = '/var/folders/43/0rcft_cn3zs7fgp1m0mgfs0c0000gn/T/simplepage/a04f398a-4577-49c1-b267-f03b30c1dd75/actions.json';
+  
+  const result = await replayFromFile(actionsFile, {
+    verbose: true,
+    delay: 2000, // 2 seconds between actions to see the process clearly
+    continueOnError: false,
+    serverUrl: 'http://localhost:3100'
+  });
+  
+  console.log('\nBaidu Search Replay Result:', result);
+}
+
 // Main function to run examples
 async function main() {
   const args = process.argv.slice(2);
@@ -100,8 +117,11 @@ async function main() {
       case '3':
         await example3();
         break;
+      case '4':
+        await example4();
+        break;
       default:
-        console.log('Usage: tsx replay-example.ts [1|2|3]');
+        console.log('Usage: tsx replay-example.ts [1|2|3|4]');
     }
   } catch (error) {
     console.error('Error:', error);
