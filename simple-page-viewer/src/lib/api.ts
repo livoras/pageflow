@@ -51,3 +51,26 @@ export async function fetchRecording(id: string): Promise<RecordingDetail> {
 export function getScreenshotUrl(recordingId: string, filename: string): string {
   return `${API_BASE_URL}/api/recordings/${recordingId}/files/${filename}`;
 }
+
+export async function replayActions(actions: Action[], options?: {
+  delay?: number;
+  verbose?: boolean;
+  continueOnError?: boolean;
+}): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/replay`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      actions,
+      options: options || {}
+    })
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to replay actions');
+  }
+  
+  return response.json();
+}

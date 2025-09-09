@@ -10,6 +10,7 @@ import { browserDOMHighlighterScript } from './utils/browser-dom-highlighter';
 import * as fs from 'fs';
 import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
+import { replay } from './replay';
 
 interface PageInfo {
   id: string;
@@ -609,6 +610,29 @@ export class SimplePageServer {
       }
 
       res.sendFile(resolvedPath);
+    });
+
+    // Replay actions endpoint
+    this.app.post('/api/replay', async (req: Request, res: Response) => {
+      try {
+        const { actions, options = {} } = req.body;
+        const { delay = 1000, verbose = true, continueOnError = false } = options;
+        
+        if (!actions || !Array.isArray(actions)) {
+          return res.status(400).json({ error: 'Invalid request: actions array is required' });
+        }
+        
+        const result = await replay(actions, {
+          verbose,
+          delay,
+          continueOnError,
+          serverUrl: `http://localhost:${this.port}`
+        });
+        
+        res.json(result);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
     });
 
   }

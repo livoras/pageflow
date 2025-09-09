@@ -277,4 +277,21 @@ export class SimplePageClient {
   async screenshot(pageId: string): Promise<Buffer> {
     return this.request(`/api/pages/${pageId}/screenshot`);
   }
+
+  // Replay actions
+  async replay(actions: any[], options?: {
+    delay?: number;
+    verbose?: boolean;
+    continueOnError?: boolean;
+  }): Promise<any> {
+    const body = {
+      actions,
+      options: options || {}
+    };
+    
+    return this.request('/api/replay', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Recording, RecordingDetail, fetchRecordings, fetchRecording, getScreenshotUrl } from '@/lib/api';
+import { Recording, RecordingDetail, fetchRecordings, fetchRecording, getScreenshotUrl, replayActions } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
@@ -15,6 +15,8 @@ export default function Home() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalImage, setModalImage] = useState<string | null>(null);
+  const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [replayError, setReplayError] = useState<string | null>(null);
   
   // Connect to WebSocket
   const { on } = useWebSocket('ws://localhost:3100/ws');
@@ -91,6 +93,31 @@ export default function Home() {
     window.history.pushState(null, '', `?${newParams.toString()}`);
   };
 
+  const handleReplay = async () => {
+    if (!selectedRecording) return;
+    
+    setReplayStatus('running');
+    setReplayError(null);
+    
+    try {
+      const result = await replayActions(selectedRecording.actions, {
+        delay: 1000,
+        verbose: true,
+        continueOnError: false
+      });
+      
+      setReplayStatus('success');
+      console.log('Replay result:', result);
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setReplayStatus('idle'), 3000);
+    } catch (error) {
+      setReplayStatus('error');
+      setReplayError(error instanceof Error ? error.message : 'Replay failed');
+      console.error('Replay error:', error);
+    }
+  };
+
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
@@ -135,8 +162,34 @@ export default function Home() {
           <div className="p-8">Loading recording details...</div>
         ) : selectedRecording ? (
           <div className="p-8">
-            <h1 className="text-2xl font-bold mb-2">{selectedRecording.name || selectedRecording.description}</h1>
-            <p className="text-gray-600 mb-6">ID: {selectedRecording.id}</p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-bold mb-2">{selectedRecording.name || selectedRecording.description}</h1>
+                <p className="text-gray-600">ID: {selectedRecording.id}</p>
+              </div>
+              <button
+                onClick={handleReplay}
+                disabled={replayStatus === 'running'}
+                className={`px-4 py-2 rounded transition-colors ${
+                  replayStatus === 'running' 
+                    ? 'bg-gray-400 text-white cursor-not-allowed' 
+                    : replayStatus === 'success'
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : replayStatus === 'error'
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
+              >
+                {replayStatus === 'running' ? 'Replaying...' : 
+                 replayStatus === 'success' ? 'Success!' :
+                 replayStatus === 'error' ? 'Failed' : 'Replay'}
+              </button>
+            </div>
+            {replayError && (
+              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                Error: {replayError}
+              </div>
+            )}
             
             <div className="space-y-4">
               {selectedRecording.actions.map((action, index) => (
