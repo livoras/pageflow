@@ -535,6 +535,7 @@ export class SimplePageServer {
               
               recordings.push({
                 id: actionsData.id || dir,
+                name: actionsData.name || actionsData.description || 'Unknown',
                 description: actionsData.description || 'Unknown',
                 actionsCount: actionsData.actions ? actionsData.actions.length : 0,
                 lastAction: actionsData.actions && actionsData.actions.length > 0 
@@ -568,7 +569,10 @@ export class SimplePageServer {
         const actionsPath = path.join(recordingPath, 'actions.json');
         
         if (!fs.existsSync(actionsPath)) {
-          return res.status(404).json({ error: 'Recording not found' });
+          return res.json({ 
+            recordingEnabled: false,
+            message: 'This page was created without recording enabled'
+          });
         }
 
         const actionsContent = fs.readFileSync(actionsPath, 'utf-8');
@@ -738,7 +742,7 @@ export class SimplePageServer {
     const id = uuid();
     const page = await this.persistentContext.newPage();
     const enableScreenshot = process.env.SCREENSHOT === 'true';
-    const simplePage = new SimplePage(page, id, description, enableScreenshot, recordActions);
+    const simplePage = new SimplePage(page, id, name, description, enableScreenshot, recordActions);
     
     // Set callback to broadcast action events
     simplePage.setOnAction((pageId: string, action: any) => {

@@ -2,6 +2,7 @@ const API_BASE_URL = 'http://localhost:3100';
 
 export interface Recording {
   id: string;
+  name: string;
   description: string;
   actionsCount: number;
   lastAction: string | null;
@@ -10,6 +11,7 @@ export interface Recording {
 
 export interface RecordingDetail {
   id: string;
+  name?: string;
   description: string;
   actions: Action[];
   basePath: string;

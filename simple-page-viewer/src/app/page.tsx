@@ -68,7 +68,16 @@ export default function Home() {
     if (selectedId) {
       setLoadingDetail(true);
       fetchRecording(selectedId)
-        .then(setSelectedRecording)
+        .then((data) => {
+          // Check if recording is disabled
+          if (data.recordingEnabled === false) {
+            setSelectedRecording(null);
+            setError(data.message || 'Recording not available');
+          } else {
+            setSelectedRecording(data);
+            setError(null);
+          }
+        })
         .catch((err) => setError(err.message))
         .finally(() => setLoadingDetail(false));
     } else {
@@ -106,7 +115,7 @@ export default function Home() {
                 {selectedId === recording.id && (
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
                 )}
-                <div className="font-medium">{recording.description}</div>
+                <div className="font-medium">{recording.name}</div>
                 <div className="text-sm text-gray-600 mt-1">
                   {recording.actionsCount} actions
                   {recording.lastAction && ` • ${recording.lastAction}`}
@@ -126,7 +135,7 @@ export default function Home() {
           <div className="p-8">Loading recording details...</div>
         ) : selectedRecording ? (
           <div className="p-8">
-            <h1 className="text-2xl font-bold mb-2">{selectedRecording.description}</h1>
+            <h1 className="text-2xl font-bold mb-2">{selectedRecording.name || selectedRecording.description}</h1>
             <p className="text-gray-600 mb-6">ID: {selectedRecording.id}</p>
             
             <div className="space-y-4">

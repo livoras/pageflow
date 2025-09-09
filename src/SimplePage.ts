@@ -66,7 +66,7 @@ export class SimplePage {
     this.rootFrameId = newId;
   }
 
-  constructor(page: PlaywrightPage, id?: string, description?: string, enableScreenshot: boolean = false, recordActions: boolean = true) {
+  constructor(page: PlaywrightPage, id?: string, name?: string, description?: string, enableScreenshot: boolean = false, recordActions: boolean = true) {
     this.page = page;
     this.enableScreenshot = enableScreenshot;
     this.recordingEnabled = recordActions;
@@ -81,11 +81,11 @@ export class SimplePage {
     };
     
     if (id && recordActions) {
-      this.initializePageState(id, description);
+      this.initializePageState(id, name, description);
     }
   }
 
-  private initializePageState(id: string, description?: string) {
+  private initializePageState(id: string, name?: string, description?: string) {
     this.pageId = id;
     this.pageDir = path.join(os.tmpdir(), 'simplepage', id);
     const dataDir = path.join(this.pageDir, 'data');
@@ -109,6 +109,7 @@ export class SimplePage {
     } else {
       this.pageState = {
         id,
+        name,
         description,
         actions: []
       };
