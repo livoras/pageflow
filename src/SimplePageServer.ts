@@ -744,10 +744,12 @@ export class SimplePageServer {
     const enableScreenshot = process.env.SCREENSHOT === 'true';
     const simplePage = new SimplePage(page, id, name, description, enableScreenshot, recordActions);
     
-    // Set callback to broadcast action events
-    simplePage.setOnAction((pageId: string, action: any) => {
-      this.broadcast('action-recorded', { pageId, action });
-    });
+    // Set callback to broadcast action events only if recording is enabled
+    if (recordActions) {
+      simplePage.setOnAction((pageId: string, action: any) => {
+        this.broadcast('action-recorded', { pageId, action });
+      });
+    }
     
     await simplePage.init();
 
@@ -764,14 +766,16 @@ export class SimplePageServer {
 
     this.pages.set(id, pageInfo);
 
-    // Broadcast new page event
-    this.broadcast('page-created', {
-      id,
-      name,
-      description,
-      url: page.url(),
-      createdAt: pageInfo.createdAt
-    });
+    // Only broadcast new page event if recording is enabled
+    if (recordActions) {
+      this.broadcast('page-created', {
+        id,
+        name,
+        description,
+        url: page.url(),
+        createdAt: pageInfo.createdAt
+      });
+    }
 
     return id;
   }
