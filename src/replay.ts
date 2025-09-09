@@ -172,7 +172,8 @@ export async function replay(actions: Action[], options: ReplayOptions = {}): Pr
       result.executedActions++;
 
       // Add delay between actions (default 1 second)
-      if (action.type !== 'wait') {
+      // Skip delay for 'wait' (has its own timing) and 'create' (fast operation)
+      if (action.type !== 'wait' && action.type !== 'create') {
         await sleep(options.delay ?? 1000);
       }
 
