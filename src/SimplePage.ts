@@ -55,6 +55,7 @@ export class SimplePage {
   private consoleLogPath: string | null = null;
   private consoleLogStream: fs.WriteStream | null = null;
   private enableScreenshot: boolean = false;
+  private recordingEnabled: boolean = true;
   private onAction?: (pageId: string, action: Action) => void;
 
   public get frameId(): string {
@@ -65,9 +66,10 @@ export class SimplePage {
     this.rootFrameId = newId;
   }
 
-  constructor(page: PlaywrightPage, id?: string, description?: string, enableScreenshot: boolean = false) {
+  constructor(page: PlaywrightPage, id?: string, description?: string, enableScreenshot: boolean = false, recordActions: boolean = true) {
     this.page = page;
     this.enableScreenshot = enableScreenshot;
+    this.recordingEnabled = recordActions;
     this.logger = (info: any) => {
       if (info.level === 1) {
         console.error(info.message);
@@ -78,7 +80,7 @@ export class SimplePage {
       }
     };
     
-    if (id) {
+    if (id && recordActions) {
       this.initializePageState(id, description);
     }
   }
@@ -199,7 +201,7 @@ export class SimplePage {
   }
 
   private async recordAction(action: Omit<Action, 'timestamp'>) {
-    if (!this.pageState) return;
+    if (!this.pageState || !this.recordingEnabled) return;
     
     const fullAction: Action = {
       ...action,

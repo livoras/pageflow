@@ -81,7 +81,7 @@ export class SimplePageServer {
     // Create new page
     this.app.post('/api/pages', async (req: Request, res: Response) => {
       try {
-        const { name, description, url, timeout = 10000 } = req.body;
+        const { name, description, url, timeout = 10000, recordActions = true } = req.body;
         
         if (!name) {
           return res.status(400).json({ error: 'Page name is required' });
@@ -95,7 +95,7 @@ export class SimplePageServer {
           console.log(`[CreatePage] ${description}`);
         }
 
-        const pageId = await this.createPage(name, description, url, timeout);
+        const pageId = await this.createPage(name, description, url, timeout, recordActions);
         const pageInfo = this.pages.get(pageId)!;
         
         res.json({
@@ -730,7 +730,7 @@ export class SimplePageServer {
     });
   }
 
-  private async createPage(name: string, description: string | undefined, url: string, timeout: number = 10000): Promise<string> {
+  private async createPage(name: string, description: string | undefined, url: string, timeout: number = 10000, recordActions: boolean = true): Promise<string> {
     if (!this.persistentContext) {
       throw new Error('Browser not initialized');
     }
@@ -738,7 +738,7 @@ export class SimplePageServer {
     const id = uuid();
     const page = await this.persistentContext.newPage();
     const enableScreenshot = process.env.SCREENSHOT === 'true';
-    const simplePage = new SimplePage(page, id, description, enableScreenshot);
+    const simplePage = new SimplePage(page, id, description, enableScreenshot, recordActions);
     
     // Set callback to broadcast action events
     simplePage.setOnAction((pageId: string, action: any) => {

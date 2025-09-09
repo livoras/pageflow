@@ -41,6 +41,7 @@ export interface ConditionResponse {
 export interface PageOptions {
   timeout?: number;
   description?: string;
+  recordActions?: boolean;
 }
 
 class Page {
@@ -157,7 +158,8 @@ export class SimplePageClient {
       name,
       url,
       description: options?.description,
-      timeout: options?.timeout || 10000
+      timeout: options?.timeout || 10000,
+      recordActions: options?.recordActions !== false // Default to true
     };
     
     const pageInfo: PageInfo = await this.request('/api/pages', {

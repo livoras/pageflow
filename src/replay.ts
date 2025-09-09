@@ -67,7 +67,7 @@ export async function replay(actions: Action[], options: ReplayOptions = {}): Pr
           const page = await client.createPage(
             action.description || 'Replay page',
             action.url || 'about:blank',
-            { timeout: action.timeout }
+            { timeout: action.timeout, recordActions: false }
           );
           pageId = page.id;
           result.pageId = pageId;
