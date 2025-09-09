@@ -135,7 +135,7 @@ export default function Home() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <h3 className="text-base font-semibold inline">
-                        {index + 1}. {action.type}
+                        {index + 1}. {action.type}{action.method ? ` · ${action.method}` : ''}
                       </h3>
                       {action.description && (
                         <span className="text-gray-600 ml-2">{action.description}</span>
@@ -168,7 +168,7 @@ export default function Home() {
                     )}
                   </div>
                   
-                  {action.screenshot && (
+                  {action.screenshot && action.type !== 'create' && (
                     <div className="mt-2">
                       <img
                         src={getScreenshotUrl(selectedRecording.id, action.screenshot)}
