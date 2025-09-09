@@ -99,10 +99,13 @@ export default function Home() {
               <button
                 key={recording.id}
                 onClick={() => handleRecordingClick(recording.id)}
-                className={`w-full text-left p-4 border-b hover:bg-gray-100 transition-colors ${
-                  selectedId === recording.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                className={`relative w-full text-left p-4 border-b hover:bg-gray-100 transition-colors ${
+                  selectedId === recording.id ? 'bg-blue-50' : ''
                 }`}
               >
+                {selectedId === recording.id && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                )}
                 <div className="font-medium">{recording.description}</div>
                 <div className="text-sm text-gray-600 mt-1">
                   {recording.actionsCount} actions
