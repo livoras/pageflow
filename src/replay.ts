@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // Import Action interface from SimplePage
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListByParent' | 'getElementHtml';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListHtmlByParent' | 'getElementHtml';
   url?: string;
   method?: string;
   xpath?: string;
@@ -184,16 +184,18 @@ export async function replay(actions: Action[], options: ReplayOptions = {}): Pr
           break;
         }
 
-        case 'getListByParent': {
+        case 'getListHtmlByParent': {
           if (!pageId) throw new Error('No page created yet');
           
-          if (action.xpath) {
-            // Note: SimplePageClient doesn't have getListByParent yet
-            // You would need to extend it or call the server endpoint directly
-            console.warn('getListByParent replay not fully implemented - would extract list from:', action.xpath);
+          if (action.selector) {
+            // Extract list by parent
+            const result = await page.getListHtmlByParent(action.selector, action.description);
             if (options.verbose) {
-              console.log(`   XPath: ${action.xpath}`);
-              console.log(`   Original result: ${action.count} items in ${action.listFile}`);
+              console.log(`   Selector: ${action.selector}`);
+              console.log(`   Result: ${result.success ? 'Success' : 'Failed'}`);
+              if (result.listFile) {
+                console.log(`   List file: ${result.listFile}`);
+              }
             }
           }
           break;

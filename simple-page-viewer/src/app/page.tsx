@@ -281,7 +281,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  {action.type === 'getListByParent' && action.listFile && (
+                  {action.type === 'getListHtmlByParent' && action.listFile && (
                     <div className="mt-2">
                       <button
                         onClick={() => handleListClick(action)}

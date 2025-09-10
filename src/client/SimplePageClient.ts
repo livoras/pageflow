@@ -107,8 +107,8 @@ class Page {
     return this.client.getListHtml(this.id, xpath, parentDepth, description);
   }
 
-  async getListByParent(childXPath: string, parentSelector: string, description?: string): Promise<any> {
-    return this.client.getListByParent(this.id, childXPath, parentSelector, description);
+  async getListHtmlByParent(selector: string, description?: string): Promise<any> {
+    return this.client.getListHtmlByParent(this.id, selector, description);
   }
 
   async getElementHtml(selector: string, description?: string): Promise<any> {
@@ -321,14 +321,13 @@ export class SimplePageClient {
     });
   }
 
-  async getListByParent(pageId: string, childXPath: string, parentSelector: string, description?: string): Promise<any> {
+  async getListHtmlByParent(pageId: string, selector: string, description?: string): Promise<any> {
     const body = {
-      childXPath,
-      parentSelector,
+      selector,
       description
     };
     
-    return this.request(`/api/pages/${pageId}/get-list-by-parent`, {
+    return this.request(`/api/pages/${pageId}/get-list-html-by-parent`, {
       method: 'POST',
       body: JSON.stringify(body)
     });

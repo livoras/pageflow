@@ -357,14 +357,13 @@ Extracts HTML for list elements.
 }
 ```
 
-#### POST `/api/pages/:pageId/get-list-by-parent`
-Extracts list elements by finding their common parent.
+#### POST `/api/pages/:pageId/get-list-html-by-parent`
+Extracts HTML for all direct children of a parent element.
 
 **Request Body:**
 ```json
 {
-  "childXPath": "//span[@class='item-name']",
-  "parentSelector": "li",  // CSS selector for parent element
+  "selector": "//ul[@class='items']",  // CSS selector or XPath for parent element
   "description": "Extract items by parent"
 }
 ```
@@ -490,6 +489,9 @@ The SDK Page class provides these methods:
 - `checkCondition(pattern, flags, description)` - Check page state
 - `getStructure(selector)` - Get page structure, returns {structure, htmlPath, actionsPath, consoleLogPath}
 - `getXPath(encodedId)` - Convert EncodedId to XPath
+- `getListHtml(xpath, parentDepth, description)` - Extract list elements HTML
+- `getListHtmlByParent(selector, description)` - Extract HTML of all direct children from parent
+- `getElementHtml(selector, description)` - Extract single element HTML
 - `screenshot()` - Take page screenshot
 - `close()` - Close the page
 

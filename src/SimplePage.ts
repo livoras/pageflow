@@ -15,7 +15,7 @@ async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
 }
 
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListByParent' | 'getElementHtml';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListHtmlByParent' | 'getElementHtml';
   url?: string;
   method?: string;
   xpath?: string;
@@ -847,7 +847,7 @@ ${scriptContent} \
   }
 
   // Get list of outerHTML from all direct children of a parent element and save to file
-  public async getListByParent(xpath: string): Promise<string | null> {
+  public async getListHtmlByParent(selector: string): Promise<string | null> {
     // Initialize pageDir if not already initialized
     if (!this.pageDir) {
       if (!this.pageId) {
@@ -856,14 +856,27 @@ ${scriptContent} \
       this.pageDir = path.join(os.tmpdir(), 'simplepage', this.pageId);
     }
     
-    const htmlList = await this.page.evaluate((xpath) => {
-      const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-      const parent = result.singleNodeValue;
+    // Check if selector is XPath or CSS
+    const isXPath = selector.startsWith('/') || selector.startsWith('(') || selector.includes('::');
+    
+    const htmlList = await this.page.evaluate(({ selector, isXPath }) => {
+      let parent: Element | null = null;
+      
+      if (isXPath) {
+        const result = document.evaluate(selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const node = result.singleNodeValue;
+        if (node && node.nodeType === Node.ELEMENT_NODE) {
+          parent = node as Element;
+        }
+      } else {
+        parent = document.querySelector(selector);
+      }
+      
       if (!parent || !parent.children) return [];
       
       // 获取所有直接子元素的 outerHTML
       return Array.from(parent.children).map(child => child.outerHTML);
-    }, xpath);
+    }, { selector, isXPath });
     
     // 确保 data 目录存在
     const dataDir = path.join(this.pageDir, 'data');
@@ -881,11 +894,11 @@ ${scriptContent} \
     // 记录 action
     if (this.pageState) {
       await this.recordAction({
-        type: 'getListByParent',
-        xpath: xpath,
+        type: 'getListHtmlByParent',
+        selector: selector,
         listFile: listFile,
         count: htmlList.length,
-        description: `Extract list from ${xpath}`
+        description: `Extract list from ${selector}`
       });
     }
     
