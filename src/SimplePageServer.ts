@@ -670,7 +670,7 @@ export class SimplePageServer {
     });
 
     // Get list by selector (CSS or XPath)
-    this.app.post('/api/pages/:pageId/get-list', async (req: Request, res: Response) => {
+    this.app.post('/api/pages/:pageId/get-list-html', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
         const { selector } = req.body;
@@ -684,7 +684,7 @@ export class SimplePageServer {
           return res.status(404).json({ error: 'Page not found' });
         }
         
-        const listFile = await pageInfo.simplePage.getList(selector);
+        const listFile = await pageInfo.simplePage.getListHtml(selector);
         
         if (!listFile) {
           return res.status(500).json({ error: 'Failed to extract list' });

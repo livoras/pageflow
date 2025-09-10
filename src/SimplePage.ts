@@ -15,7 +15,7 @@ async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
 }
 
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getList' | 'getListByParent';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListByParent';
   url?: string;
   method?: string;
   xpath?: string;
@@ -785,7 +785,7 @@ ${scriptContent} \
   }
 
   // Get list of outerHTML from elements matching selector (CSS or XPath) and save to file
-  public async getList(selector: string): Promise<string | null> {
+  public async getListHtml(selector: string): Promise<string | null> {
     // Initialize pageDir if not already initialized
     if (!this.pageDir) {
       if (!this.pageId) {
@@ -834,7 +834,7 @@ ${scriptContent} \
     // 记录 action
     if (this.pageState) {
       await this.recordAction({
-        type: 'getList',
+        type: 'getListHtml',
         selector: selector,
         listFile: listFile,
         count: htmlList.length,
