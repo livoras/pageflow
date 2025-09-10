@@ -1,5 +1,5 @@
 ---
-description: Use SimplePage to automate web interactions with see-act-see cycle
+description: Act on web pages using SimplePage API with see-act-see cycle
 allowed-tools: Bash, Read
 ---
 
