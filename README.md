@@ -234,11 +234,39 @@ Checks if page structure matches a pattern.
 }
 ```
 
+#### GET `/api/pages/:pageId/screenshot`
+Captures a screenshot of the current page.
+
+**Response:**
+- Content-Type: `image/png`
+- Body: PNG image binary data
+
+#### GET `/api/pages/:pageId/xpath/:encodedId`
+Converts an EncodedId to its corresponding XPath.
+
+**Response:**
+```json
+{
+  "xpath": "//button[@id='submit']"
+}
+```
+
 #### GET `/api/pages/:pageId`
 Returns page information.
 
 #### GET `/api/pages`
 Lists all open pages.
+
+#### GET `/api/recordings/:recordingId/data/:filename`
+Access recorded data files (supports both JSON and HTML files).
+
+**Parameters:**
+- `recordingId`: The ID of the recording
+- `filename`: The filename to access (e.g., "1234567890-list.json" or "1234567890-element.html")
+
+**Response:**
+- For `.json` files: JSON data
+- For `.html` files: HTML content with Content-Type: `text/html`
 
 ## Page State Tracking
 
@@ -275,6 +303,87 @@ curl http://localhost:3100/api/recordings/{recordingId}
 
 # Access recording files (screenshots, etc)
 curl http://localhost:3100/api/recordings/{recordingId}/files/{filename}
+
+# Access recording data files (list JSON, element HTML)
+curl http://localhost:3100/api/recordings/{recordingId}/data/{filename}
+```
+
+### Replay API
+
+#### POST `/api/replay`
+Replays a sequence of recorded actions.
+
+**Request Body:**
+```json
+{
+  "actions": [...],       // Array of actions to replay
+  "options": {
+    "delay": 1000,        // Optional: delay between actions in ms (default: 1000)
+    "verbose": true,      // Optional: enable verbose output (default: false)
+    "continueOnError": false // Optional: continue on error (default: false)
+  }
+}
+```
+
+### Element Extraction APIs
+
+#### POST `/api/pages/:pageId/get-list-html`
+Extracts HTML for list elements.
+
+**Request Body:**
+```json
+{
+  "xpath": "//ul[@class='items']/li",
+  "parentDepth": 2,    // Optional: levels to traverse up (default: 2)
+  "description": "Extract product list"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "listFile": "1234567890-list.json"
+}
+```
+
+#### POST `/api/pages/:pageId/get-list-by-parent`
+Extracts list elements by finding their common parent.
+
+**Request Body:**
+```json
+{
+  "childXPath": "//span[@class='item-name']",
+  "parentSelector": "li",  // CSS selector for parent element
+  "description": "Extract items by parent"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "listFile": "1234567890-list.json"
+}
+```
+
+#### POST `/api/pages/:pageId/get-element-html`
+Extracts HTML for a single element.
+
+**Request Body:**
+```json
+{
+  "selector": ".header-title",  // CSS selector or XPath
+  "description": "Extract header element"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "elementFile": "1234567890-element.html"
+}
 ```
 
 ## Example Scripts

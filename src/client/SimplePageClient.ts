@@ -102,6 +102,18 @@ class Page {
   async close(): Promise<ActionResponse> {
     return this.client.closePage(this.id);
   }
+
+  async getListHtml(xpath: string, parentDepth?: number, description?: string): Promise<any> {
+    return this.client.getListHtml(this.id, xpath, parentDepth, description);
+  }
+
+  async getListByParent(childXPath: string, parentSelector: string, description?: string): Promise<any> {
+    return this.client.getListByParent(this.id, childXPath, parentSelector, description);
+  }
+
+  async getElementHtml(selector: string, description?: string): Promise<any> {
+    return this.client.getElementHtml(this.id, selector, description);
+  }
 }
 
 export class SimplePageClient {
@@ -290,6 +302,45 @@ export class SimplePageClient {
     };
     
     return this.request('/api/replay', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  }
+
+  // Element extraction
+  async getListHtml(pageId: string, xpath: string, parentDepth?: number, description?: string): Promise<any> {
+    const body = {
+      xpath,
+      parentDepth: parentDepth || 2,
+      description
+    };
+    
+    return this.request(`/api/pages/${pageId}/get-list-html`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  }
+
+  async getListByParent(pageId: string, childXPath: string, parentSelector: string, description?: string): Promise<any> {
+    const body = {
+      childXPath,
+      parentSelector,
+      description
+    };
+    
+    return this.request(`/api/pages/${pageId}/get-list-by-parent`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  }
+
+  async getElementHtml(pageId: string, selector: string, description?: string): Promise<any> {
+    const body = {
+      selector,
+      description
+    };
+    
+    return this.request(`/api/pages/${pageId}/get-element-html`, {
       method: 'POST',
       body: JSON.stringify(body)
     });
