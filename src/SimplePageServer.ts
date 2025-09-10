@@ -612,6 +612,40 @@ export class SimplePageServer {
       res.sendFile(resolvedPath);
     });
 
+    // Get list data files
+    this.app.get('/api/recordings/:recordingId/data/:filename', async (req: Request, res: Response) => {
+      try {
+        const { recordingId, filename } = req.params;
+        const path = await import('path');
+        const fs = await import('fs');
+        const recordingsBaseDir = os.tmpdir();
+        
+        // Validate filename format to prevent path traversal
+        if (!filename.match(/^\d+-list\.json$/)) {
+          return res.status(400).json({ error: 'Invalid filename format' });
+        }
+        
+        const dataPath = path.join(recordingsBaseDir, 'simplepage', recordingId, 'data', filename);
+        
+        if (!fs.existsSync(dataPath)) {
+          return res.status(404).json({ error: 'List file not found' });
+        }
+        
+        // Security check - ensure we're not serving files outside the recording directory
+        const resolvedPath = path.resolve(dataPath);
+        const expectedBase = path.resolve(path.join(recordingsBaseDir, 'simplepage', recordingId, 'data'));
+        if (!resolvedPath.startsWith(expectedBase)) {
+          return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        const content = fs.readFileSync(dataPath, 'utf-8');
+        res.json(JSON.parse(content));
+        
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Replay actions endpoint
     this.app.post('/api/replay', async (req: Request, res: Response) => {
       try {
@@ -630,6 +664,51 @@ export class SimplePageServer {
         });
         
         res.json(result);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get list by parent selector
+    this.app.post('/api/pages/:pageId/get-list-by-parent', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { xpath } = req.body;
+        
+        if (!xpath) {
+          return res.status(400).json({ error: 'xpath is required' });
+        }
+        
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+        
+        const listFile = await pageInfo.simplePage.getListByParent(xpath);
+        
+        if (!listFile) {
+          return res.status(500).json({ error: 'Failed to extract list' });
+        }
+        
+        // Read the file to get count
+        const fs = await import('fs');
+        const path = await import('path');
+        const pageDir = pageInfo.simplePage.pageDir;
+        if (!pageDir) {
+          return res.status(500).json({ error: 'Page directory not found' });
+        }
+        
+        const listPath = path.join(pageDir, 'data', listFile);
+        const listContent = fs.readFileSync(listPath, 'utf-8');
+        const listData = JSON.parse(listContent);
+        
+        res.json({
+          success: true,
+          listFile,
+          count: listData.length,
+          dataPath: listPath
+        });
+        
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }

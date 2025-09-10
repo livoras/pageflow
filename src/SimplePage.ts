@@ -5,6 +5,7 @@ import type { Protocol } from "devtools-protocol";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { v4 as uuid } from "uuid";
 
 async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
   const { frameTree } = (await session.send(
@@ -775,6 +776,52 @@ ${scriptContent} \
   // Get actions.json file path
   public getActionsPath(): string | null {
     return this.pageDir ? path.join(this.pageDir, 'actions.json') : null;
+  }
+
+  // Get list of outerHTML from all direct children of a parent element and save to file
+  public async getListByParent(xpath: string): Promise<string | null> {
+    // Initialize pageDir if not already initialized
+    if (!this.pageDir) {
+      if (!this.pageId) {
+        this.pageId = uuid();
+      }
+      this.pageDir = path.join(os.tmpdir(), 'simplepage', this.pageId);
+    }
+    
+    const htmlList = await this.page.evaluate((xpath) => {
+      const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+      const parent = result.singleNodeValue;
+      if (!parent || !parent.children) return [];
+      
+      // 获取所有直接子元素的 outerHTML
+      return Array.from(parent.children).map(child => child.outerHTML);
+    }, xpath);
+    
+    // 确保 data 目录存在
+    const dataDir = path.join(this.pageDir, 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    
+    // 保存到文件
+    const timestamp = Date.now();
+    const listFile = `${timestamp}-list.json`;
+    const listPath = path.join(dataDir, listFile);
+    
+    fs.writeFileSync(listPath, JSON.stringify(htmlList, null, 2));
+    
+    // 记录 action
+    if (this.recordingEnabled) {
+      await this.recordAction({
+        type: 'getListByParent',
+        xpath: xpath,
+        listFile: listFile,
+        count: htmlList.length,
+        description: `Extract list from ${xpath}`
+      });
+    }
+    
+    return listFile;
   }
 
   /**

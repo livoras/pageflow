@@ -17,6 +17,8 @@ export default function Home() {
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [replayError, setReplayError] = useState<string | null>(null);
+  const [modalListData, setModalListData] = useState<{ items: string[], action: any } | null>(null);
+  const [listPreviewMode, setListPreviewMode] = useState<'html' | 'preview'>('html');
   
   // Connect to WebSocket
   const { on } = useWebSocket('ws://localhost:3100/ws');
@@ -91,6 +93,21 @@ export default function Home() {
     const newParams = new URLSearchParams();
     newParams.set('id', id);
     window.history.pushState(null, '', `?${newParams.toString()}`);
+  };
+
+  const handleListClick = async (action: any) => {
+    if (!action.listFile || !selectedRecording) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3100/api/recordings/${selectedRecording.id}/data/${action.listFile}`);
+      if (!response.ok) throw new Error('Failed to fetch list data');
+      
+      const data = await response.json();
+      setModalListData({ items: Array.isArray(data) ? data : [], action });
+    } catch (error) {
+      console.error('Failed to load list data:', error);
+      setError('Failed to load list data');
+    }
   };
 
   const handleReplay = async () => {
@@ -230,6 +247,17 @@ export default function Home() {
                     )}
                   </div>
                   
+                  {action.type === 'getListByParent' && action.listFile && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => handleListClick(action)}
+                        className="text-blue-500 hover:text-blue-600 text-sm underline"
+                      >
+                        View List ({action.count || 0} items)
+                      </button>
+                    </div>
+                  )}
+                  
                   {action.screenshot && action.type !== 'create' && (
                     <div className="mt-2">
                       <img
@@ -264,6 +292,90 @@ export default function Home() {
               className="max-w-full h-auto"
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        </div>
+      )}
+      
+      {/* List Data Modal */}
+      {modalListData && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-8"
+          onClick={() => {
+            setModalListData(null);
+            setListPreviewMode('html');
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">List Data ({modalListData.items.length} items)</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    From: {modalListData.action.xpath || modalListData.action.description}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setListPreviewMode('html')}
+                    className={`px-3 py-1 rounded text-sm ${
+                      listPreviewMode === 'html'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300'
+                    }`}
+                  >
+                    HTML
+                  </button>
+                  <button
+                    onClick={() => setListPreviewMode('preview')}
+                    className={`px-3 py-1 rounded text-sm ${
+                      listPreviewMode === 'preview'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300'
+                    }`}
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {listPreviewMode === 'html' ? (
+                <div className="space-y-4">
+                  {modalListData.items.map((item, index) => (
+                    <div key={index} className="border rounded p-3 bg-gray-50">
+                      <div className="text-xs text-gray-500 mb-1">Item {index + 1}</div>
+                      <pre className="text-xs overflow-x-auto whitespace-pre-wrap">{item}</pre>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {modalListData.items.map((item, index) => (
+                    <div key={index} className="border rounded p-4">
+                      <div className="text-xs text-gray-500 mb-2">Item {index + 1}</div>
+                      <div 
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: item }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => {
+                  setModalListData(null);
+                  setListPreviewMode('html');
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
