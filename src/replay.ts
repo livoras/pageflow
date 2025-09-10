@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // Import Action interface from SimplePage
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListByParent';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getList';
   url?: string;
   method?: string;
   xpath?: string;
@@ -21,6 +21,7 @@ interface Action {
   matched?: boolean;
   listFile?: string;
   count?: number;
+  selector?: string;
 }
 
 export interface ReplayOptions {
@@ -167,15 +168,15 @@ export async function replay(actions: Action[], options: ReplayOptions = {}): Pr
           break;
         }
 
-        case 'getListByParent': {
+        case 'getList': {
           if (!pageId) throw new Error('No page created yet');
           
-          if (action.xpath) {
-            // Note: SimplePageClient doesn't have getListByParent yet
+          if (action.xpath || action.selector) {
+            // Note: SimplePageClient doesn't have getList yet
             // You would need to extend it or call the server endpoint directly
-            console.warn('getListByParent replay not fully implemented - would extract list from:', action.xpath);
+            console.warn('getList replay not fully implemented - would extract list from:', action.xpath || action.selector);
             if (options.verbose) {
-              console.log(`   XPath: ${action.xpath}`);
+              console.log(`   Selector: ${action.xpath || action.selector}`);
               console.log(`   Original result: ${action.count} items in ${action.listFile}`);
             }
           }

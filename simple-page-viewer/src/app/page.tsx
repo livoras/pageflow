@@ -237,6 +237,12 @@ export default function Home() {
                         <code className="ml-1 bg-gray-100 px-1 rounded">{action.xpath}</code>
                       </div>
                     )}
+                    {action.selector && (
+                      <div className="truncate">
+                        <span className="font-medium">Selector:</span> 
+                        <code className="ml-1 bg-gray-100 px-1 rounded">{action.selector}</code>
+                      </div>
+                    )}
                     {action.args && action.args.length > 0 && (
                       <div className="truncate">
                         <span className="font-medium">Args:</span> 
@@ -247,7 +253,7 @@ export default function Home() {
                     )}
                   </div>
                   
-                  {action.type === 'getListByParent' && action.listFile && (
+                  {action.type === 'getList' && action.listFile && (
                     <div className="mt-2">
                       <button
                         onClick={() => handleListClick(action)}
@@ -314,7 +320,7 @@ export default function Home() {
                 <div>
                   <h2 className="text-xl font-bold">List Data ({modalListData.items.length} items)</h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    From: {modalListData.action.xpath || modalListData.action.description}
+                    From: {modalListData.action.selector || modalListData.action.xpath || modalListData.action.description}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

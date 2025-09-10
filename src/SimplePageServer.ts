@@ -669,14 +669,14 @@ export class SimplePageServer {
       }
     });
 
-    // Get list by parent selector
-    this.app.post('/api/pages/:pageId/get-list-by-parent', async (req: Request, res: Response) => {
+    // Get list by selector (CSS or XPath)
+    this.app.post('/api/pages/:pageId/get-list', async (req: Request, res: Response) => {
       try {
         const { pageId } = req.params;
-        const { xpath } = req.body;
+        const { selector } = req.body;
         
-        if (!xpath) {
-          return res.status(400).json({ error: 'xpath is required' });
+        if (!selector) {
+          return res.status(400).json({ error: 'selector is required' });
         }
         
         const pageInfo = this.pages.get(pageId);
@@ -684,7 +684,7 @@ export class SimplePageServer {
           return res.status(404).json({ error: 'Page not found' });
         }
         
-        const listFile = await pageInfo.simplePage.getListByParent(xpath);
+        const listFile = await pageInfo.simplePage.getList(selector);
         
         if (!listFile) {
           return res.status(500).json({ error: 'Failed to extract list' });
@@ -693,7 +693,7 @@ export class SimplePageServer {
         // Read the file to get count
         const fs = await import('fs');
         const path = await import('path');
-        const pageDir = pageInfo.simplePage.pageDir;
+        const pageDir = (pageInfo.simplePage as any).pageDir;
         if (!pageDir) {
           return res.status(500).json({ error: 'Page directory not found' });
         }

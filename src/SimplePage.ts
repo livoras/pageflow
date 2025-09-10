@@ -15,11 +15,12 @@ async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
 }
 
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getList';
   url?: string;
   method?: string;
   xpath?: string;
   encodedId?: string;
+  selector?: string;
   args?: string[];
   description?: string;
   timestamp: number;
@@ -27,6 +28,11 @@ interface Action {
   structure?: string;
   xpathMap?: string;
   screenshot?: string;
+  listFile?: string;
+  count?: number;
+  pattern?: string;
+  flags?: string;
+  matched?: boolean;
 }
 
 interface PageState {
@@ -644,8 +650,8 @@ ${scriptContent} \
     // Wait for DOM to settle after all actions
     await this._waitForSettledDom(waitTimeout);
     
-    // Record action after execution (only if called directly, not from actByEncodedId)
-    if (this.pageState && description !== undefined) {
+    // Record action after execution
+    if (this.pageState) {
       await this.recordAction({
         type: 'act',
         method,
@@ -778,8 +784,8 @@ ${scriptContent} \
     return this.pageDir ? path.join(this.pageDir, 'actions.json') : null;
   }
 
-  // Get list of outerHTML from all direct children of a parent element and save to file
-  public async getListByParent(xpath: string): Promise<string | null> {
+  // Get list of outerHTML from elements matching selector (CSS or XPath) and save to file
+  public async getList(selector: string): Promise<string | null> {
     // Initialize pageDir if not already initialized
     if (!this.pageDir) {
       if (!this.pageId) {
@@ -788,14 +794,29 @@ ${scriptContent} \
       this.pageDir = path.join(os.tmpdir(), 'simplepage', this.pageId);
     }
     
-    const htmlList = await this.page.evaluate((xpath) => {
-      const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-      const parent = result.singleNodeValue;
-      if (!parent || !parent.children) return [];
+    // Check if selector is XPath or CSS
+    const isXPath = selector.startsWith('/') || selector.startsWith('(') || selector.includes('::');
+    
+    const htmlList = await this.page.evaluate(({ selector, isXPath }) => {
+      let elements: Element[] = [];
       
-      // 获取所有直接子元素的 outerHTML
-      return Array.from(parent.children).map(child => child.outerHTML);
-    }, xpath);
+      if (isXPath) {
+        // Use XPath to get all matching elements
+        const result = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+        for (let i = 0; i < result.snapshotLength; i++) {
+          const node = result.snapshotItem(i);
+          if (node && node.nodeType === Node.ELEMENT_NODE) {
+            elements.push(node as Element);
+          }
+        }
+      } else {
+        // Use CSS selector to get all matching elements
+        elements = Array.from(document.querySelectorAll(selector));
+      }
+      
+      // Get outerHTML of all matching elements
+      return elements.map(element => element.outerHTML);
+    }, { selector, isXPath });
     
     // 确保 data 目录存在
     const dataDir = path.join(this.pageDir, 'data');
@@ -811,13 +832,13 @@ ${scriptContent} \
     fs.writeFileSync(listPath, JSON.stringify(htmlList, null, 2));
     
     // 记录 action
-    if (this.recordingEnabled) {
+    if (this.pageState) {
       await this.recordAction({
-        type: 'getListByParent',
-        xpath: xpath,
+        type: 'getList',
+        selector: selector,
         listFile: listFile,
         count: htmlList.length,
-        description: `Extract list from ${xpath}`
+        description: `Extract list from ${selector}`
       });
     }
     

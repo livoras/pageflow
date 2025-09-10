@@ -23,6 +23,7 @@ export interface Action {
   url?: string;
   method?: string;
   xpath?: string;
+  selector?: string;
   args?: string[];
   description?: string;
   timestamp: number;
@@ -30,6 +31,8 @@ export interface Action {
   structure?: string;
   xpathMap?: string;
   screenshot?: string;
+  listFile?: string;
+  count?: number;
 }
 
 export async function fetchRecordings(): Promise<Recording[]> {
