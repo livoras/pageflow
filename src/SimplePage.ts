@@ -15,7 +15,7 @@ async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
 }
 
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getList';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getList' | 'getListByParent';
   url?: string;
   method?: string;
   xpath?: string;
@@ -839,6 +839,52 @@ ${scriptContent} \
         listFile: listFile,
         count: htmlList.length,
         description: `Extract list from ${selector}`
+      });
+    }
+    
+    return listFile;
+  }
+
+  // Get list of outerHTML from all direct children of a parent element and save to file
+  public async getListByParent(xpath: string): Promise<string | null> {
+    // Initialize pageDir if not already initialized
+    if (!this.pageDir) {
+      if (!this.pageId) {
+        this.pageId = uuid();
+      }
+      this.pageDir = path.join(os.tmpdir(), 'simplepage', this.pageId);
+    }
+    
+    const htmlList = await this.page.evaluate((xpath) => {
+      const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+      const parent = result.singleNodeValue;
+      if (!parent || !parent.children) return [];
+      
+      // 获取所有直接子元素的 outerHTML
+      return Array.from(parent.children).map(child => child.outerHTML);
+    }, xpath);
+    
+    // 确保 data 目录存在
+    const dataDir = path.join(this.pageDir, 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    
+    // 保存到文件
+    const timestamp = Date.now();
+    const listFile = `${timestamp}-list.json`;
+    const listPath = path.join(dataDir, listFile);
+    
+    fs.writeFileSync(listPath, JSON.stringify(htmlList, null, 2));
+    
+    // 记录 action
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'getListByParent',
+        xpath: xpath,
+        listFile: listFile,
+        count: htmlList.length,
+        description: `Extract list from ${xpath}`
       });
     }
     

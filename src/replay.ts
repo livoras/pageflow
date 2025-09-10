@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // Import Action interface from SimplePage
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getList';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getList' | 'getListByParent';
   url?: string;
   method?: string;
   xpath?: string;
@@ -177,6 +177,21 @@ export async function replay(actions: Action[], options: ReplayOptions = {}): Pr
             console.warn('getList replay not fully implemented - would extract list from:', action.xpath || action.selector);
             if (options.verbose) {
               console.log(`   Selector: ${action.xpath || action.selector}`);
+              console.log(`   Original result: ${action.count} items in ${action.listFile}`);
+            }
+          }
+          break;
+        }
+
+        case 'getListByParent': {
+          if (!pageId) throw new Error('No page created yet');
+          
+          if (action.xpath) {
+            // Note: SimplePageClient doesn't have getListByParent yet
+            // You would need to extend it or call the server endpoint directly
+            console.warn('getListByParent replay not fully implemented - would extract list from:', action.xpath);
+            if (options.verbose) {
+              console.log(`   XPath: ${action.xpath}`);
               console.log(`   Original result: ${action.count} items in ${action.listFile}`);
             }
           }

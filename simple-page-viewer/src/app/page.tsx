@@ -263,6 +263,17 @@ export default function Home() {
                       </button>
                     </div>
                   )}
+
+                  {action.type === 'getListByParent' && action.listFile && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => handleListClick(action)}
+                        className="text-blue-500 hover:text-blue-600 text-sm underline"
+                      >
+                        View List ({action.count || 0} items)
+                      </button>
+                    </div>
+                  )}
                   
                   {action.screenshot && action.type !== 'create' && (
                     <div className="mt-2">
