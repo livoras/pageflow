@@ -524,7 +524,7 @@ ${scriptContent} \
     if (method === 'fill' && args[0]) {
       await locator.fill(args[0]);
     } else if (method === 'click') {
-      await locator.click();
+      await locator.click({ force: true });
     } else if (method === 'select' && args[0]) {
       await locator.selectOption(args[0]);
     } else if (method === 'check') {
