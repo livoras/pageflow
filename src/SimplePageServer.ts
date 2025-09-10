@@ -621,7 +621,7 @@ export class SimplePageServer {
         const recordingsBaseDir = os.tmpdir();
         
         // Validate filename format to prevent path traversal
-        if (!filename.match(/^\d+-list\.json$/)) {
+        if (!filename.match(/^\d+-(list\.json|element\.html)$/)) {
           return res.status(400).json({ error: 'Invalid filename format' });
         }
         
@@ -639,7 +639,14 @@ export class SimplePageServer {
         }
         
         const content = fs.readFileSync(dataPath, 'utf-8');
-        res.json(JSON.parse(content));
+        
+        // Return HTML content as text for element files
+        if (filename.endsWith('.html')) {
+          res.type('text/html').send(content);
+        } else {
+          // Return JSON for list files
+          res.json(JSON.parse(content));
+        }
         
       } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -752,6 +759,49 @@ export class SimplePageServer {
           listFile,
           count: listData.length,
           dataPath: listPath
+        });
+        
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get single element HTML
+    this.app.post('/api/pages/:pageId/get-element-html', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        const { selector } = req.body;
+        
+        if (!selector) {
+          return res.status(400).json({ error: 'selector is required' });
+        }
+        
+        const pageInfo = this.pages.get(pageId);
+        if (!pageInfo) {
+          return res.status(404).json({ error: 'Page not found' });
+        }
+        
+        const elementFile = await pageInfo.simplePage.getElementHtml(selector);
+        
+        if (!elementFile) {
+          return res.status(500).json({ error: 'Element not found or failed to extract' });
+        }
+        
+        // Read the file to get content
+        const fs = await import('fs');
+        const path = await import('path');
+        const pageDir = (pageInfo.simplePage as any).pageDir;
+        if (!pageDir) {
+          return res.status(500).json({ error: 'Page directory not found' });
+        }
+        
+        const elementPath = path.join(pageDir, 'data', elementFile);
+        const elementContent = fs.readFileSync(elementPath, 'utf-8');
+        
+        res.json({
+          success: true,
+          elementFile,
+          dataPath: elementPath
         });
         
       } catch (error: any) {

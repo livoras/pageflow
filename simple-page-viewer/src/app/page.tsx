@@ -19,6 +19,8 @@ export default function Home() {
   const [replayError, setReplayError] = useState<string | null>(null);
   const [modalListData, setModalListData] = useState<{ items: string[], action: any } | null>(null);
   const [listPreviewMode, setListPreviewMode] = useState<'html' | 'preview'>('html');
+  const [modalElementData, setModalElementData] = useState<{ html: string, action: any } | null>(null);
+  const [elementPreviewMode, setElementPreviewMode] = useState<'html' | 'preview'>('html');
   
   // Connect to WebSocket
   const { on } = useWebSocket('ws://localhost:3100/ws');
@@ -107,6 +109,21 @@ export default function Home() {
     } catch (error) {
       console.error('Failed to load list data:', error);
       setError('Failed to load list data');
+    }
+  };
+
+  const handleElementClick = async (action: any) => {
+    if (!action.elementFile || !selectedRecording) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3100/api/recordings/${selectedRecording.id}/data/${action.elementFile}`);
+      if (!response.ok) throw new Error('Failed to fetch element data');
+      
+      const html = await response.text();
+      setModalElementData({ html, action });
+    } catch (error) {
+      console.error('Failed to load element data:', error);
+      setError('Failed to load element data');
     }
   };
 
@@ -275,6 +292,17 @@ export default function Home() {
                     </div>
                   )}
                   
+                  {action.type === 'getElementHtml' && action.elementFile && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => handleElementClick(action)}
+                        className="text-blue-500 hover:text-blue-600 text-sm underline"
+                      >
+                        View Element
+                      </button>
+                    </div>
+                  )}
+                  
                   {action.screenshot && action.type !== 'create' && (
                     <div className="mt-2">
                       <img
@@ -387,6 +415,77 @@ export default function Home() {
                 onClick={() => {
                   setModalListData(null);
                   setListPreviewMode('html');
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Element HTML Modal */}
+      {modalElementData && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-8"
+          onClick={() => {
+            setModalElementData(null);
+            setElementPreviewMode('html');
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">Element HTML</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    From: {modalElementData.action.selector || modalElementData.action.description}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setElementPreviewMode('html')}
+                    className={`px-3 py-1 rounded text-sm ${
+                      elementPreviewMode === 'html'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300'
+                    }`}
+                  >
+                    HTML
+                  </button>
+                  <button
+                    onClick={() => setElementPreviewMode('preview')}
+                    className={`px-3 py-1 rounded text-sm ${
+                      elementPreviewMode === 'preview'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300'
+                    }`}
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {elementPreviewMode === 'html' ? (
+                <div className="border rounded p-3 bg-gray-50">
+                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap">{modalElementData.html}</pre>
+                </div>
+              ) : (
+                <div className="prose prose-sm max-w-none">
+                  <div dangerouslySetInnerHTML={{ __html: modalElementData.html }} />
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => {
+                  setModalElementData(null);
+                  setElementPreviewMode('html');
                 }}
                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
               >

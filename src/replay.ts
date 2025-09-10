@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // Import Action interface from SimplePage
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListByParent';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListByParent' | 'getElementHtml';
   url?: string;
   method?: string;
   xpath?: string;
@@ -20,6 +20,7 @@ interface Action {
   flags?: string;
   matched?: boolean;
   listFile?: string;
+  elementFile?: string;
   count?: number;
   selector?: string;
 }
@@ -193,6 +194,21 @@ export async function replay(actions: Action[], options: ReplayOptions = {}): Pr
             if (options.verbose) {
               console.log(`   XPath: ${action.xpath}`);
               console.log(`   Original result: ${action.count} items in ${action.listFile}`);
+            }
+          }
+          break;
+        }
+
+        case 'getElementHtml': {
+          if (!pageId) throw new Error('No page created yet');
+          
+          if (action.selector) {
+            // Note: SimplePageClient doesn't have getElementHtml yet
+            // You would need to extend it or call the server endpoint directly
+            console.warn('getElementHtml replay not fully implemented - would extract element from:', action.selector);
+            if (options.verbose) {
+              console.log(`   Selector: ${action.selector}`);
+              console.log(`   Original result saved to: ${action.elementFile}`);
             }
           }
           break;

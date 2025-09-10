@@ -15,7 +15,7 @@ async function getCurrentRootFrameId(session: CDPSession): Promise<string> {
 }
 
 interface Action {
-  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListByParent';
+  type: 'create' | 'act' | 'close' | 'navigate' | 'navigateBack' | 'navigateForward' | 'reload' | 'wait' | 'condition' | 'getListHtml' | 'getListByParent' | 'getElementHtml';
   url?: string;
   method?: string;
   xpath?: string;
@@ -29,6 +29,7 @@ interface Action {
   xpathMap?: string;
   screenshot?: string;
   listFile?: string;
+  elementFile?: string;
   count?: number;
   pattern?: string;
   flags?: string;
@@ -889,6 +890,67 @@ ${scriptContent} \
     }
     
     return listFile;
+  }
+
+  // Get outerHTML of a single element matching selector (CSS or XPath) and save to file
+  public async getElementHtml(selector: string): Promise<string | null> {
+    // Initialize pageDir if not already initialized
+    if (!this.pageDir) {
+      if (!this.pageId) {
+        this.pageId = uuid();
+      }
+      this.pageDir = path.join(os.tmpdir(), 'simplepage', this.pageId);
+    }
+    
+    // Check if selector is XPath or CSS
+    const isXPath = selector.startsWith('/') || selector.startsWith('(') || selector.includes('::');
+    
+    const elementHtml = await this.page.evaluate(({ selector, isXPath }) => {
+      let element: Element | null = null;
+      
+      if (isXPath) {
+        // Use XPath to get first matching element
+        const result = document.evaluate(selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const node = result.singleNodeValue;
+        if (node && node.nodeType === Node.ELEMENT_NODE) {
+          element = node as Element;
+        }
+      } else {
+        // Use CSS selector to get first matching element
+        element = document.querySelector(selector);
+      }
+      
+      // Get outerHTML of the element
+      return element ? element.outerHTML : null;
+    }, { selector, isXPath });
+    
+    if (!elementHtml) {
+      return null;
+    }
+    
+    // Ensure data directory exists
+    const dataDir = path.join(this.pageDir, 'data');
+    fs.mkdirSync(dataDir, { recursive: true });
+    
+    // Create unique filename with timestamp
+    const timestamp = Date.now();
+    const elementFile = `${timestamp}-element.html`;
+    const elementPath = path.join(dataDir, elementFile);
+    
+    // Save element HTML to file
+    fs.writeFileSync(elementPath, elementHtml);
+    
+    // Record action
+    if (this.pageState) {
+      await this.recordAction({
+        type: 'getElementHtml',
+        selector: selector,
+        elementFile: elementFile,
+        description: `Extract element from ${selector}`
+      });
+    }
+    
+    return elementFile;
   }
 
   /**
