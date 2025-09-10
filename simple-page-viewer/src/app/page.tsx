@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Recording, RecordingDetail, fetchRecordings, fetchRecording, getScreenshotUrl, replayActions } from '@/lib/api';
+import { Recording, RecordingDetail, fetchRecordings, fetchRecording, getScreenshotUrl, replayActions, deleteRecording, deleteAction } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
@@ -21,6 +21,7 @@ export default function Home() {
   const [listPreviewMode, setListPreviewMode] = useState<'html' | 'preview'>('html');
   const [modalElementData, setModalElementData] = useState<{ html: string, action: any } | null>(null);
   const [elementPreviewMode, setElementPreviewMode] = useState<'html' | 'preview'>('html');
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'recording' | 'action', id: string, index?: number, name?: string } | null>(null);
   
   // Connect to WebSocket
   const { on } = useWebSocket('ws://localhost:3100/ws');
@@ -75,11 +76,8 @@ export default function Home() {
       setLoadingDetail(true);
       fetchRecording(selectedId)
         .then((data) => {
-          // Check if recording is disabled
-          if (data.recordingEnabled === false) {
-            setSelectedRecording(null);
-            setError(data.message || 'Recording not available');
-          } else {
+          // Check if recording is valid
+          if ('actions' in data && Array.isArray(data.actions)) {
             setSelectedRecording(data);
             setError(null);
           }
@@ -151,6 +149,52 @@ export default function Home() {
       console.error('Replay error:', error);
     }
   };
+  
+  const handleDeleteRecording = async (recordingId: string) => {
+    if (!confirmDelete || confirmDelete.type !== 'recording' || confirmDelete.id !== recordingId) {
+      return;
+    }
+    
+    try {
+      await deleteRecording(recordingId);
+      
+      // Refresh recordings list
+      const updatedRecordings = await fetchRecordings();
+      setRecordings(updatedRecordings);
+      
+      // Clear selection if deleted recording was selected
+      if (selectedId === recordingId) {
+        setSelectedRecording(null);
+        window.history.pushState({}, '', window.location.pathname);
+      }
+      
+      // Close confirmation dialog
+      setConfirmDelete(null);
+    } catch (error) {
+      console.error('Failed to delete recording:', error);
+      alert('Failed to delete recording');
+    }
+  };
+  
+  const handleDeleteAction = async (actionIndex: number) => {
+    if (!selectedRecording || !confirmDelete || confirmDelete.type !== 'action' || confirmDelete.index !== actionIndex) {
+      return;
+    }
+    
+    try {
+      await deleteAction(selectedRecording.id, actionIndex);
+      
+      // Refresh recording details
+      const updatedRecording = await fetchRecording(selectedRecording.id);
+      setSelectedRecording(updatedRecording);
+      
+      // Close confirmation dialog
+      setConfirmDelete(null);
+    } catch (error) {
+      console.error('Failed to delete action:', error);
+      alert('Failed to delete action');
+    }
+  };
 
   return (
     <div className="flex h-screen">
@@ -166,25 +210,39 @@ export default function Home() {
         ) : (
           <div>
             {recordings.map((recording) => (
-              <button
+              <div
                 key={recording.id}
-                onClick={() => handleRecordingClick(recording.id)}
-                className={`relative w-full text-left p-4 border-b hover:bg-gray-100 transition-colors ${
+                className={`recording-row p-4 border-b hover:bg-gray-100 transition-colors ${
                   selectedId === recording.id ? 'bg-blue-50' : ''
                 }`}
               >
-                {selectedId === recording.id && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
-                )}
-                <div className="font-medium">{recording.name}</div>
-                <div className="text-sm text-gray-600 mt-1">
-                  {recording.actionsCount} actions
-                  {recording.lastAction && ` • ${recording.lastAction}`}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {new Date(recording.createdAt).toLocaleString()}
-                </div>
-              </button>
+                <button
+                  onClick={() => handleRecordingClick(recording.id)}
+                  className="text-left flex-1"
+                >
+                  {selectedId === recording.id && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                  )}
+                  <div className="font-medium">{recording.name}</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {recording.actionsCount} actions
+                    {recording.lastAction && ` • ${recording.lastAction}`}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {new Date(recording.createdAt).toLocaleString()}
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDelete({ type: 'recording', id: recording.id, name: recording.name });
+                  }}
+                  className="delete-btn"
+                  title="Delete recording"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -228,7 +286,7 @@ export default function Home() {
             <div className="space-y-4">
               {selectedRecording.actions.map((action, index) => (
                 <div key={index} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="action-row">
                     <div className="flex-1">
                       <h3 className="text-base font-semibold inline">
                         {index + 1}. {action.type}{action.method ? ` · ${action.method}` : ''}
@@ -240,6 +298,13 @@ export default function Home() {
                         {new Date(action.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
+                    <button
+                      onClick={() => setConfirmDelete({ type: 'action', id: selectedRecording.id, index, name: `Action ${index + 1}` })}
+                      className="delete-btn"
+                      title="Delete action"
+                    >
+                      ×
+                    </button>
                   </div>
                   
                   <div className="space-y-1 text-xs">
@@ -309,7 +374,7 @@ export default function Home() {
                         src={getScreenshotUrl(selectedRecording.id, action.screenshot)}
                         alt={`Screenshot for ${action.type}`}
                         className="w-48 h-auto border rounded shadow-sm cursor-pointer hover:opacity-80"
-                        onClick={() => setModalImage(getScreenshotUrl(selectedRecording.id, action.screenshot))}
+                        onClick={() => action.screenshot && setModalImage(getScreenshotUrl(selectedRecording.id, action.screenshot))}
                       />
                     </div>
                   )}
@@ -490,6 +555,56 @@ export default function Home() {
                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Confirmation Dialog */}
+      {confirmDelete && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-8"
+          onClick={() => setConfirmDelete(null)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-md overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b">
+              <h2 className="text-xl font-bold">Confirm Delete</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {confirmDelete.type === 'recording' ? 'Recording' : 'Action'}: {confirmDelete.name}
+              </p>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to delete this {confirmDelete.type === 'recording' ? 'recording' : 'action'}?
+              </p>
+              {confirmDelete.type === 'recording' && (
+                <div className="bg-red-50 border border-red-100 rounded p-3 text-sm text-red-700">
+                  <strong>Warning:</strong> This will permanently delete all actions and associated files.
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmDelete.type === 'recording') {
+                    handleDeleteRecording(confirmDelete.id);
+                  } else if (confirmDelete.index !== undefined) {
+                    handleDeleteAction(confirmDelete.index);
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+              >
+                Delete
               </button>
             </div>
           </div>

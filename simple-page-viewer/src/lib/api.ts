@@ -32,6 +32,7 @@ export interface Action {
   xpathMap?: string;
   screenshot?: string;
   listFile?: string;
+  elementFile?: string;
   count?: number;
 }
 
@@ -73,6 +74,30 @@ export async function replayActions(actions: Action[], options?: {
   
   if (!response.ok) {
     throw new Error('Failed to replay actions');
+  }
+  
+  return response.json();
+}
+
+export async function deleteAction(pageId: string, actionIndex: number): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/pages/${pageId}/actions/${actionIndex}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to delete action');
+  }
+  
+  return response.json();
+}
+
+export async function deleteRecording(recordingId: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/pages/${recordingId}/records`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to delete recording');
   }
   
   return response.json();

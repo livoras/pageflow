@@ -19,6 +19,8 @@ async function main() {
   console.log('  POST /api/pages/:pageId/act-xpath');
   console.log('  POST /api/pages/:pageId/act-id');
   console.log('  GET  /api/pages/:pageId/screenshot');
+  console.log('  DELETE /api/pages/:pageId/actions/:actionIndex');
+  console.log('  DELETE /api/pages/:pageId/records');
   
   // Handle graceful shutdown
   process.on('SIGINT', async () => {

@@ -306,6 +306,20 @@ export class SimplePageClient {
       body: JSON.stringify(body)
     });
   }
+  
+  // Delete a specific action from the recording
+  async deleteAction(pageId: string, actionIndex: number): Promise<{ success: boolean }> {
+    return this.request(`/api/pages/${pageId}/actions/${actionIndex}`, {
+      method: 'DELETE'
+    });
+  }
+  
+  // Delete all recording data (actions and files)
+  async deleteAllRecords(pageId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/pages/${pageId}/records`, {
+      method: 'DELETE'
+    });
+  }
 
   // Element extraction
   async getListHtml(pageId: string, xpath: string, parentDepth?: number, description?: string): Promise<any> {

@@ -65,6 +65,7 @@ body {
 .items-start { align-items: flex-start; }
 .justify-center { justify-content: center; }
 .justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
 .gap-2 { gap: 0.5rem; }
 
 /* Spacing */
@@ -256,3 +257,76 @@ button {
 .hover\:bg-blue-600:hover { background-color: #2563eb; }
 
 .cursor-not-allowed { cursor: not-allowed; }
+
+/* Group hover functionality */
+.group { position: relative; }
+.opacity-0 { opacity: 0; }
+.opacity-100 { opacity: 1; }
+.transition-opacity { 
+  transition: opacity 150ms ease-in-out; 
+}
+.group:hover .group-hover\:opacity-100 { 
+  opacity: 1; 
+}
+
+/* Additional hover states */
+.text-gray-400 { color: #9ca3af; }
+.hover\:text-gray-800:hover { color: #1f2937; }
+.hover\:text-red-500:hover { color: #ef4444; }
+.hover\:bg-red-500:hover { background-color: #ef4444; }
+.bg-red-50 { background-color: #fef2f2; }
+.hover\:bg-red-50:hover { background-color: #fef2f2; }
+.border-red-100 { 
+  border-width: 1px;
+  border-style: solid;
+  border-color: #fee2e2;
+}
+
+/* Position utilities */
+.right-2 { right: 0.5rem; }
+.top-1\/2 { top: 50%; }
+.-translate-y-1\/2 { transform: translateY(-50%); }
+
+/* Additional padding */
+.p-1 { padding: 0.25rem; }
+.p-2 { padding: 0.5rem; }
+
+/* Delete button styles */
+.delete-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #666;
+  border-radius: 4px;
+  cursor: pointer;
+  display: none;
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+}
+
+.delete-btn:hover {
+  background: #ff4444;
+  color: white;
+  border-color: #ff4444;
+}
+
+/* Show delete button on row hover */
+.recording-row:hover .delete-btn,
+.action-row:hover .delete-btn {
+  display: inline-block;
+}
+
+/* Row styles */
+.recording-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

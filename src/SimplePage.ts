@@ -966,6 +966,105 @@ ${scriptContent} \
     return elementFile;
   }
 
+  // Delete a specific action from the recording
+  public async deleteAction(index: number): Promise<boolean> {
+    if (!this.pageState || !this.pageDir) {
+      return false;
+    }
+    
+    if (index < 0 || index >= this.pageState.actions.length) {
+      return false;
+    }
+    
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      // Get the action to be deleted
+      const actionToDelete = this.pageState.actions[index];
+      
+      // Delete associated files
+      const dataDir = path.join(this.pageDir, 'data');
+      
+      // Delete screenshot if exists
+      if (actionToDelete.screenshot) {
+        const screenshotPath = path.join(dataDir, actionToDelete.screenshot);
+        if (fs.existsSync(screenshotPath)) {
+          fs.unlinkSync(screenshotPath);
+        }
+      }
+      
+      // Delete structure file if exists
+      if (actionToDelete.structure) {
+        const structurePath = path.join(dataDir, actionToDelete.structure);
+        if (fs.existsSync(structurePath)) {
+          fs.unlinkSync(structurePath);
+        }
+      }
+      
+      // Delete xpathMap file if exists
+      if (actionToDelete.xpathMap) {
+        const xpathPath = path.join(dataDir, actionToDelete.xpathMap);
+        if (fs.existsSync(xpathPath)) {
+          fs.unlinkSync(xpathPath);
+        }
+      }
+      
+      // Delete list file if exists
+      if (actionToDelete.listFile) {
+        const listPath = path.join(dataDir, actionToDelete.listFile);
+        if (fs.existsSync(listPath)) {
+          fs.unlinkSync(listPath);
+        }
+      }
+      
+      // Delete element file if exists
+      if (actionToDelete.elementFile) {
+        const elementPath = path.join(dataDir, actionToDelete.elementFile);
+        if (fs.existsSync(elementPath)) {
+          fs.unlinkSync(elementPath);
+        }
+      }
+      
+      // Remove the action from the array
+      this.pageState.actions.splice(index, 1);
+      
+      // Save the updated actions
+      const actionsPath = path.join(this.pageDir, 'actions.json');
+      fs.writeFileSync(actionsPath, JSON.stringify(this.pageState, null, 2));
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting action:', error);
+      return false;
+    }
+  }
+  
+  // Delete all recording data (actions.json and all associated files)
+  public async deleteAllRecords(): Promise<boolean> {
+    if (!this.pageDir) {
+      return false;
+    }
+    
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      // Remove the entire page directory
+      if (fs.existsSync(this.pageDir)) {
+        fs.rmSync(this.pageDir, { recursive: true, force: true });
+      }
+      
+      // Clear the page state
+      this.pageState = null;
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting all records:', error);
+      return false;
+    }
+  }
+
   /**
    * `_waitForSettledDom` waits until the DOM is settled, and therefore is
    * ready for actions to be taken.

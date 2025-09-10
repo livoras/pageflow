@@ -112,6 +112,118 @@ export class SimplePageServer {
       }
     });
 
+    // Delete specific action from recording
+    this.app.delete('/api/pages/:pageId/actions/:actionIndex', async (req: Request, res: Response) => {
+      try {
+        const { pageId, actionIndex } = req.params;
+        const index = parseInt(actionIndex);
+        
+        // First try to find active page
+        const pageInfo = this.pages.get(pageId);
+        if (pageInfo) {
+          // Delete from active page
+          const success = await pageInfo.simplePage.deleteAction(index);
+          if (!success) {
+            return res.status(400).json({ error: 'Failed to delete action' });
+          }
+          return res.json({ success: true });
+        }
+        
+        // If no active page, delete directly from recording file
+        const fs = await import('fs');
+        const path = await import('path');
+        const os = await import('os');
+        
+        const recordingDir = path.join(os.tmpdir(), 'simplepage', pageId);
+        const actionsFile = path.join(recordingDir, 'actions.json');
+        
+        if (!fs.existsSync(actionsFile)) {
+          return res.status(404).json({ error: 'Recording not found' });
+        }
+        
+        // Read actions
+        const actionsData = JSON.parse(fs.readFileSync(actionsFile, 'utf-8'));
+        
+        if (index < 0 || index >= actionsData.actions.length) {
+          return res.status(400).json({ error: 'Invalid action index' });
+        }
+        
+        // Get the action to be deleted
+        const actionToDelete = actionsData.actions[index];
+        
+        // Remove the action
+        actionsData.actions.splice(index, 1);
+        
+        // Write updated actions back
+        fs.writeFileSync(actionsFile, JSON.stringify(actionsData, null, 2));
+        
+        // Delete associated files
+        const filesToDelete = [];
+        const dataDir = path.join(recordingDir, 'data');
+        if (actionToDelete.screenshot) {
+          filesToDelete.push(path.join(dataDir, actionToDelete.screenshot));
+        }
+        if (actionToDelete.listFile) {
+          filesToDelete.push(path.join(dataDir, actionToDelete.listFile));
+        }
+        if (actionToDelete.elementFile) {
+          filesToDelete.push(path.join(dataDir, actionToDelete.elementFile));
+        }
+        if (actionToDelete.xpathMap) {
+          filesToDelete.push(path.join(dataDir, actionToDelete.xpathMap));
+        }
+        
+        for (const file of filesToDelete) {
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+        }
+        
+        res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Delete all recording data (actions and files)
+    this.app.delete('/api/pages/:pageId/records', async (req: Request, res: Response) => {
+      try {
+        const { pageId } = req.params;
+        
+        // First try to find active page
+        const pageInfo = this.pages.get(pageId);
+        if (pageInfo) {
+          // Delete from active page
+          const success = await pageInfo.simplePage.deleteAllRecords();
+          if (!success) {
+            return res.status(500).json({ error: 'Failed to delete records' });
+          }
+          
+          // Remove from active pages
+          this.pages.delete(pageId);
+          return res.json({ success: true });
+        }
+        
+        // If no active page, delete directly from disk
+        const fs = await import('fs');
+        const path = await import('path');
+        const os = await import('os');
+        
+        const recordingDir = path.join(os.tmpdir(), 'simplepage', pageId);
+        
+        if (!fs.existsSync(recordingDir)) {
+          return res.status(404).json({ error: 'Recording not found' });
+        }
+        
+        // Remove the entire recording directory
+        fs.rmSync(recordingDir, { recursive: true, force: true });
+        
+        res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Close page
     this.app.delete('/api/pages/:pageId', async (req: Request, res: Response) => {
       try {
