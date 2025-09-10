@@ -13,8 +13,10 @@
 
 ```bash
 # 在 stagehand 项目根目录下
-PORT=3100 pnpm run server
+PORT=3100 SCREENSHOT=true pnpm run server
 ```
+
+**重要**：务必添加 `SCREENSHOT=true` 参数以启用截图功能，这样每个操作都会自动保存截图，便于调试和回溯。
 
 服务器将在 http://localhost:3100 启动，提供以下 API 端点：
 - GET `/health` - 健康检查
@@ -65,7 +67,7 @@ kill -9 [PID]
 ## 环境变量
 
 - `PORT` - API 服务器端口，默认 3100
-- `SCREENSHOT` - 是否启用截图功能，设置为 `true` 启用
+- `SCREENSHOT` - **是否启用截图功能，强烈建议设置为 `true` 启用**。启用后每个操作都会保存截图到 `/tmp/simplepage/{pageId}/`，对于调试和操作回溯非常重要
 
 ## 注意事项
 
