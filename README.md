@@ -67,6 +67,16 @@ curl -X POST http://localhost:3100/api/pages/{pageId}/act-id \
   -H "Content-Type: application/json" \
   -d '{"encodedId": "0-123", "method": "click"}'
 
+# Fill input field with text
+curl -X POST http://localhost:3100/api/pages/{pageId}/act-id \
+  -H "Content-Type: application/json" \
+  -d '{"encodedId": "0-456", "method": "fill", "args": ["Hello World"], "description": "Fill search box"}'
+
+# Fill input field using XPath
+curl -X POST http://localhost:3100/api/pages/{pageId}/act-xpath \
+  -H "Content-Type: application/json" \
+  -d '{"xpath": "//input[@name=\"search\"]", "method": "fill", "args": ["搜索内容"], "description": "Fill search input"}'
+
 # Scroll to bottom
 curl -X POST http://localhost:3100/api/pages/{pageId}/act-xpath \
   -H "Content-Type: application/json" \
