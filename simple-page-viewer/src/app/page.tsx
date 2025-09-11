@@ -463,15 +463,28 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {modalListData.items.map((item, index) => (
-                    <div key={index} className="border rounded p-4">
-                      <div className="text-xs text-gray-500 mb-2">Item {index + 1}</div>
-                      <div 
-                        className="prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: item }}
-                      />
-                    </div>
-                  ))}
+                  {modalListData.items.map((item, index) => {
+                    // 清除原始HTML中的class和style属性
+                    const cleanedHtml = item
+                      // 移除所有class属性
+                      .replace(/\sclass="[^"]*"/g, '')
+                      .replace(/\sclassName="[^"]*"/g, '')
+                      // 移除所有style属性
+                      .replace(/\sstyle="[^"]*"/g, '')
+                      // 移除可能影响布局的data属性
+                      .replace(/\sdata-testid="[^"]*"/g, '');
+                    
+                    
+                    return (
+                      <div key={index} className="border rounded p-4">
+                        <div className="text-xs text-gray-500 mb-2">Item {index + 1}</div>
+                        <div 
+                          className="prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{ __html: cleanedHtml }}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
