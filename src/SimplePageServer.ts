@@ -921,6 +921,81 @@ export class SimplePageServer {
       }
     });
 
+    // Run PostScript
+    this.app.post('/api/recordings/:pageId/actions/:actionIndex/postscripts/:scriptIndex/run', async (req: Request, res: Response) => {
+      try {
+        const { pageId, actionIndex, scriptIndex } = req.params;
+        const actionIdx = parseInt(actionIndex);
+        const scriptIdx = scriptIndex === 'latest' ? undefined : parseInt(scriptIndex);
+        
+        const { runPostScript } = await import('./utils/postScript');
+        const result = runPostScript(pageId, actionIdx, scriptIdx);
+        
+        res.json({
+          success: true,
+          result
+        });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete PostScript
+    this.app.delete('/api/recordings/:pageId/actions/:actionIndex/postscripts/:scriptIndex', async (req: Request, res: Response) => {
+      try {
+        const { pageId, actionIndex, scriptIndex } = req.params;
+        const actionIdx = parseInt(actionIndex);
+        const scriptIdx = parseInt(scriptIndex);
+        
+        const { removePostScript } = await import('./utils/postScript');
+        removePostScript(pageId, actionIdx, scriptIdx);
+        
+        res.json({ success: true });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get PostScript details
+    this.app.get('/api/recordings/:pageId/actions/:actionIndex/postscripts/:scriptIndex', async (req: Request, res: Response) => {
+      try {
+        const { pageId, actionIndex, scriptIndex } = req.params;
+        const actionIdx = parseInt(actionIndex);
+        const scriptIdx = parseInt(scriptIndex);
+        
+        const fs = await import('fs');
+        const path = await import('path');
+        const os = await import('os');
+        
+        const recordingDir = path.join(os.tmpdir(), 'simplepage', pageId);
+        const actionsFile = path.join(recordingDir, 'actions.json');
+        
+        if (!fs.existsSync(actionsFile)) {
+          return res.status(404).json({ error: 'Recording not found' });
+        }
+        
+        const actionsData = JSON.parse(fs.readFileSync(actionsFile, 'utf-8'));
+        
+        if (actionIdx < 0 || actionIdx >= actionsData.actions.length) {
+          return res.status(404).json({ error: 'Action not found' });
+        }
+        
+        const action = actionsData.actions[actionIdx];
+        if (!action.postScripts || scriptIdx < 0 || scriptIdx >= action.postScripts.length) {
+          return res.status(404).json({ error: 'PostScript not found' });
+        }
+        
+        res.json({
+          success: true,
+          script: action.postScripts[scriptIdx],
+          actionIndex: actionIdx,
+          scriptIndex: scriptIdx
+        });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
   }
 
   async start() {

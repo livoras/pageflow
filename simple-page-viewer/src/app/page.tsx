@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Recording, RecordingDetail, fetchRecordings, fetchRecording, getScreenshotUrl, replayActions, deleteRecording, deleteAction } from '@/lib/api';
+import { Recording, RecordingDetail, fetchRecordings, fetchRecording, getScreenshotUrl, replayActions, deleteRecording, deleteAction, runPostScript, getPostScript, deletePostScript } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
@@ -22,6 +22,9 @@ export default function Home() {
   const [modalElementData, setModalElementData] = useState<{ html: string, action: any } | null>(null);
   const [elementPreviewMode, setElementPreviewMode] = useState<'html' | 'preview'>('html');
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'recording' | 'action', id: string, index?: number, name?: string } | null>(null);
+  const [modalPostScriptCode, setModalPostScriptCode] = useState<{ script: string, actionIndex: number, scriptIndex: number } | null>(null);
+  const [modalPostScriptResult, setModalPostScriptResult] = useState<{ result: any, action: any } | null>(null);
+  const [expandedPostScripts, setExpandedPostScripts] = useState<Set<string>>(new Set());
   
   // Connect to WebSocket
   const { on } = useWebSocket('ws://localhost:3100/ws');
@@ -196,6 +199,61 @@ export default function Home() {
     }
   };
 
+  const handleRunPostScript = async (actionIndex: number, scriptIndex: number) => {
+    if (!selectedRecording) return;
+    
+    try {
+      const result = await runPostScript(selectedRecording.id, actionIndex, scriptIndex);
+      const action = selectedRecording.actions[actionIndex];
+      setModalPostScriptResult({ result: result.result, action });
+    } catch (error) {
+      console.error('Failed to run PostScript:', error);
+      alert('Failed to run PostScript');
+    }
+  };
+
+  const handleViewPostScript = async (actionIndex: number, scriptIndex: number) => {
+    if (!selectedRecording) return;
+    
+    try {
+      const result = await getPostScript(selectedRecording.id, actionIndex, scriptIndex);
+      setModalPostScriptCode({ 
+        script: result.script, 
+        actionIndex: result.actionIndex, 
+        scriptIndex: result.scriptIndex 
+      });
+    } catch (error) {
+      console.error('Failed to get PostScript:', error);
+      alert('Failed to get PostScript');
+    }
+  };
+
+  const handleDeletePostScript = async (actionIndex: number, scriptIndex: number) => {
+    if (!selectedRecording) return;
+    
+    try {
+      await deletePostScript(selectedRecording.id, actionIndex, scriptIndex);
+      
+      // Refresh recording details
+      const updatedRecording = await fetchRecording(selectedRecording.id);
+      setSelectedRecording(updatedRecording);
+    } catch (error) {
+      console.error('Failed to delete PostScript:', error);
+      alert('Failed to delete PostScript');
+    }
+  };
+
+  const togglePostScriptExpansion = (actionIndex: number) => {
+    const key = `action-${actionIndex}`;
+    const newExpanded = new Set(expandedPostScripts);
+    if (newExpanded.has(key)) {
+      newExpanded.delete(key);
+    } else {
+      newExpanded.add(key);
+    }
+    setExpandedPostScripts(newExpanded);
+  };
+
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
@@ -297,6 +355,11 @@ export default function Home() {
                       <span className="text-xs text-gray-500 ml-2">
                         {new Date(action.timestamp).toLocaleTimeString()}
                       </span>
+                      {action.postScripts && action.postScripts.length > 0 && (
+                        <span className="postscript-badge">
+                          📜 {action.postScripts.length}
+                        </span>
+                      )}
                     </div>
                     <button
                       onClick={() => setConfirmDelete({ type: 'action', id: selectedRecording.id, index, name: `Action ${index + 1}` })}
@@ -376,6 +439,61 @@ export default function Home() {
                         className="w-48 h-auto border rounded shadow-sm cursor-pointer hover:opacity-80"
                         onClick={() => action.screenshot && setModalImage(getScreenshotUrl(selectedRecording.id, action.screenshot))}
                       />
+                    </div>
+                  )}
+
+                  {/* PostScript Panel */}
+                  {action.postScripts && action.postScripts.length > 0 && (
+                    <div className="postscript-panel">
+                      <div className="flex items-center justify-between mb-2">
+                        <button
+                          onClick={() => togglePostScriptExpansion(index)}
+                          className="postscript-toggle"
+                        >
+                          <span className="mr-1">
+                            {expandedPostScripts.has(`action-${index}`) ? '▼' : '▶'}
+                          </span>
+                          PostScripts ({action.postScripts.length})
+                        </button>
+                      </div>
+                      
+                      {expandedPostScripts.has(`action-${index}`) && (
+                        <div className="space-y-2">
+                          {action.postScripts.map((script, scriptIndex) => (
+                            <div key={scriptIndex} className="postscript-item">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-gray-600">Script {scriptIndex + 1}</span>
+                                <div className="postscript-controls">
+                                  <button
+                                    onClick={() => handleRunPostScript(index, scriptIndex)}
+                                    className="postscript-btn postscript-btn-run"
+                                    title="Run PostScript"
+                                  >
+                                    ▶ Run
+                                  </button>
+                                  <button
+                                    onClick={() => handleViewPostScript(index, scriptIndex)}
+                                    className="postscript-btn postscript-btn-view"
+                                    title="View Code"
+                                  >
+                                    👁 View
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePostScript(index, scriptIndex)}
+                                    className="postscript-btn postscript-btn-delete"
+                                    title="Delete PostScript"
+                                  >
+                                    🗑 Delete
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {script.substring(0, 80)}...
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -565,6 +683,87 @@ export default function Home() {
                   setModalElementData(null);
                   setElementPreviewMode('html');
                 }}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* PostScript Code Modal */}
+      {modalPostScriptCode && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-8"
+          onClick={() => setModalPostScriptCode(null)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-bold">PostScript Code</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Action {modalPostScriptCode.actionIndex + 1} - Script {modalPostScriptCode.scriptIndex + 1}
+              </p>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <pre className="text-sm bg-gray-100 p-4 rounded overflow-x-auto whitespace-pre-wrap">
+                {modalPostScriptCode.script}
+              </pre>
+            </div>
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => setModalPostScriptCode(null)}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PostScript Result Modal */}
+      {modalPostScriptResult && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-8"
+          onClick={() => setModalPostScriptResult(null)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-bold">PostScript Result</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                From: {modalPostScriptResult.action.selector || modalPostScriptResult.action.description}
+              </p>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="space-y-4">
+                {Array.isArray(modalPostScriptResult.result) ? (
+                  modalPostScriptResult.result.map((item, index) => (
+                    <div key={index} className="border rounded p-3 bg-gray-50">
+                      <div className="text-xs text-gray-500 mb-2">Item {index + 1}</div>
+                      <pre className="text-sm overflow-x-auto whitespace-pre-wrap">
+                        {JSON.stringify(item, null, 2)}
+                      </pre>
+                    </div>
+                  ))
+                ) : (
+                  <div className="border rounded p-3 bg-gray-50">
+                    <pre className="text-sm overflow-x-auto whitespace-pre-wrap">
+                      {JSON.stringify(modalPostScriptResult.result, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => setModalPostScriptResult(null)}
                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
               >
                 Close

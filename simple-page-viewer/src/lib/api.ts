@@ -34,6 +34,7 @@ export interface Action {
   listFile?: string;
   elementFile?: string;
   count?: number;
+  postScripts?: string[];
 }
 
 export async function fetchRecordings(): Promise<Recording[]> {
@@ -98,6 +99,44 @@ export async function deleteRecording(recordingId: string): Promise<{ success: b
   
   if (!response.ok) {
     throw new Error('Failed to delete recording');
+  }
+  
+  return response.json();
+}
+
+// PostScript 相关 API
+export async function runPostScript(pageId: string, actionIndex: number, scriptIndex: number): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/recordings/${pageId}/actions/${actionIndex}/postscripts/${scriptIndex}/run`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to run PostScript');
+  }
+  
+  return response.json();
+}
+
+export async function getPostScript(pageId: string, actionIndex: number, scriptIndex: number): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/recordings/${pageId}/actions/${actionIndex}/postscripts/${scriptIndex}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to get PostScript');
+  }
+  
+  return response.json();
+}
+
+export async function deletePostScript(pageId: string, actionIndex: number, scriptIndex: number): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/recordings/${pageId}/actions/${actionIndex}/postscripts/${scriptIndex}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to delete PostScript');
   }
   
   return response.json();
