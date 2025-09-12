@@ -68,6 +68,61 @@ function cleanDOM(doc: Document): void {
 }
 
 /**
+ * Check if ancestor element contains descendant element
+ */
+function isAncestor(ancestor: Element, descendant: Element): boolean {
+  return ancestor.contains(descendant) && ancestor !== descendant;
+}
+
+/**
+ * Calculate overlap ratio between parent and child candidates
+ */
+function calculateOverlap(parent: Element, child: Element, allCandidates: ElementStats[]): number {
+  const parentChildren = Array.from(parent.children);
+  const candidateElements = new Set(allCandidates.map(c => c.element));
+  
+  // Count parent's direct children that are candidates or contain candidates
+  const overlapCount = parentChildren.filter(childElement => 
+    candidateElements.has(childElement) || childElement.contains(child)
+  ).length;
+  
+  return parentChildren.length > 0 ? overlapCount / parentChildren.length : 0;
+}
+
+/**
+ * Filter out nested candidates with high overlap (>= 70%)
+ */
+function filterNestedCandidates(candidates: ElementStats[], overlapThreshold = 0.7): ElementStats[] {
+  const filtered: ElementStats[] = [];
+  
+  for (const candidate of candidates) {
+    let shouldKeep = true;
+    
+    // Check if candidate should be filtered out due to being a parent with high overlap
+    for (const other of candidates) {
+      if (candidate === other) continue;
+      
+      // Check if candidate is ancestor of other
+      if (isAncestor(candidate.element, other.element)) {
+        const overlap = calculateOverlap(candidate.element, other.element, candidates);
+        
+        if (overlap >= overlapThreshold) {
+          // candidate is parent with high overlap, should be filtered out
+          shouldKeep = false;
+          break;
+        }
+      }
+    }
+    
+    if (shouldKeep) {
+      filtered.push(candidate);
+    }
+  }
+  
+  return filtered;
+}
+
+/**
  * Detect potential list containers in HTML
  * @param html - HTML string to analyze
  * @returns Array of XPaths for detected list containers
@@ -238,6 +293,22 @@ export function detectLists(html: string, debug = false): string[] {
     });
   }
 
+  // Filter out nested candidates with high overlap
+  const filteredCandidates = filterNestedCandidates(listCandidates);
+  
+  if (debug) {
+    console.log(`\nFiltering results: ${listCandidates.length} -> ${filteredCandidates.length}`);
+    const filteredOut = listCandidates.length - filteredCandidates.length;
+    if (filteredOut > 0) {
+      console.log(`Filtered out ${filteredOut} nested candidates with >70% overlap`);
+    }
+    
+    console.log('\nFinal candidates after filtering:');
+    filteredCandidates.slice(0, 10).forEach((stat, i) => {
+      console.log(`${i+1}. ${stat.element.tagName}#${stat.element.id || '(no-id)'} - Children: ${stat.directChildrenCount}, Descendants: ${stat.totalDescendantsCount}`);
+    });
+  }
+  
   // Return XPaths of top candidates
-  return listCandidates.slice(0, 10).map(stat => stat.xpath);
+  return filteredCandidates.slice(0, 10).map(stat => stat.xpath);
 }
