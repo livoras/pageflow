@@ -293,14 +293,15 @@ export function detectLists(html: string, debug = false): string[] {
     });
   }
 
-  // Filter out nested candidates with high overlap
-  const filteredCandidates = filterNestedCandidates(listCandidates);
+  // Take top candidates first, then filter for efficiency
+  const topCandidates = listCandidates.slice(0, 20); // Take top 20 to ensure we get 10 after filtering
+  const filteredCandidates = filterNestedCandidates(topCandidates);
   
   if (debug) {
-    console.log(`\nFiltering results: ${listCandidates.length} -> ${filteredCandidates.length}`);
-    const filteredOut = listCandidates.length - filteredCandidates.length;
+    console.log(`\nFiltering top ${topCandidates.length} candidates: ${topCandidates.length} -> ${filteredCandidates.length}`);
+    const filteredOut = topCandidates.length - filteredCandidates.length;
     if (filteredOut > 0) {
-      console.log(`Filtered out ${filteredOut} nested candidates with >70% overlap`);
+      console.log(`Filtered out ${filteredOut} nested candidates with >70% overlap from top results`);
     }
     
     console.log('\nFinal candidates after filtering:');
