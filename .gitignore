@@ -21,3 +21,4 @@ evals/deterministic/tests/BrowserContext/tmp-test.har
 lib/version.ts
 *.txt
 *.json
+output/

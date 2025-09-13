@@ -58,6 +58,9 @@ devDependencies:
   node-fetch:
     specifier: ^3.3.2
     version: 3.3.2
+  prettier:
+    specifier: ^3.6.2
+    version: 3.6.2
   ts-node:
     specifier: ^10.9.2
     version: 10.9.2(@types/node@20.19.11)(typescript@5.9.2)
@@ -1239,6 +1242,12 @@ packages:
     optionalDependencies:
       fsevents: 2.3.2
     dev: false
+
+  /prettier@3.6.2:
+    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
+    engines: {node: '>=14'}
+    hasBin: true
+    dev: true
 
   /proxy-addr@2.0.7:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
