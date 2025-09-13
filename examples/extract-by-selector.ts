@@ -4,12 +4,13 @@ import { JSDOM } from 'jsdom';
 // Get arguments
 const args = process.argv.slice(2);
 if (args.length !== 3) {
-  console.error('Usage: tsx extract-by-selector.ts <html-file> <selector> <output-file>');
+  console.error('Usage: tsx extract-by-selector.ts <html-file> <selector-or-xpath> <output-file>');
   console.error('Example: tsx extract-by-selector.ts page.html ".search-results" results.html');
+  console.error('Example: tsx extract-by-selector.ts page.html "//div[@class=\'results\']" results.html');
   process.exit(1);
 }
 
-const [htmlFile, selector, outputFile] = args;
+const [htmlFile, selectorOrXpath, outputFile] = args;
 
 // Check input file exists
 if (!fs.existsSync(htmlFile)) {
@@ -24,10 +25,21 @@ const html = fs.readFileSync(htmlFile, 'utf-8');
 // Parse with JSDOM and extract element
 const dom = new JSDOM(html);
 const doc = dom.window.document;
-const element = doc.querySelector(selector);
+
+let element: Element | null = null;
+
+// Detect if it's XPath (starts with / or //) or CSS selector
+if (selectorOrXpath.startsWith('/')) {
+  // Use XPath
+  const result = doc.evaluate(selectorOrXpath, doc, null, 9, null); // XPathResult.FIRST_ORDERED_NODE_TYPE
+  element = result.singleNodeValue as Element;
+} else {
+  // Use CSS selector
+  element = doc.querySelector(selectorOrXpath);
+}
 
 if (!element) {
-  console.error(`Element not found with selector: ${selector}`);
+  console.error(`Element not found with ${selectorOrXpath.startsWith('/') ? 'XPath' : 'selector'}: ${selectorOrXpath}`);
   process.exit(1);
 }
 
